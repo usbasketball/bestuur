@@ -1,0 +1,50 @@
+import type { NextRequest } from "next/server";
+import createMiddleware from "next-intl/middleware";
+import { NextResponse } from "next/server";
+import { routing } from "@/i18n/routing";
+import { auth0, authEnabled, hasRequiredRole } from "@/lib/auth";
+
+const handleI18nRouting = createMiddleware(routing);
+
+export default async function proxy(request: NextRequest) {
+  if (!authEnabled()) {
+    if (request.nextUrl.pathname.startsWith("/auth")) {
+      return new NextResponse("Authentication is not configured.", {
+        status: 503,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+    return handleI18nRouting(request);
+  }
+
+  const authResponse = await auth0.middleware(request);
+
+  // Allow Auth0 callback/login/logout routes through
+  if (request.nextUrl.pathname.startsWith("/auth")) {
+    return authResponse;
+  }
+
+  // Check if user is logged in and has the required role
+  const session = await auth0.getSession(request);
+  if (session && !hasRequiredRole(session.user as Record<string, unknown>)) {
+    const locale =
+      request.nextUrl.pathname.match(/^\/(en|nl)/)?.[1] ??
+      routing.defaultLocale;
+    return NextResponse.redirect(new URL(`/${locale}/unauthorized`, request.url));
+  }
+
+  const response = handleI18nRouting(request);
+
+  for (const [key, value] of authResponse.headers) {
+    if (key.toLowerCase() === "x-middleware-next" && response.status >= 300) {
+      continue;
+    }
+    response.headers.append(key, value);
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: "/((?!api|trpc|sentry-tunnel|_next|_vercel|.*\\..*).*)",
+};

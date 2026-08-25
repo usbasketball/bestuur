@@ -1,0 +1,36 @@
+{
+  "Metadata": {
+    "title": "Bestuur",
+    "description": "US Basketball bestuur portaal"
+  },
+  "Nav": {
+    "home": "Home",
+    "login": "Inloggen",
+    "logout": "Uitloggen",
+    "openMenu": "Menu openen",
+    "closeMenu": "Menu sluiten"
+  },
+  "Home": {
+    "hero": {
+      "title": "U.S. Bestuur",
+      "tagline": "US Basketball Admin Portaal"
+    },
+    "login": {
+      "title": "Inloggen",
+      "description": "Log in om toegang te krijgen tot het admin portaal.",
+      "button": "Inloggen"
+    },
+    "welcome": {
+      "title": "Welkom terug",
+      "logout": "Uitloggen"
+    }
+  },
+  "LocaleSwitcher": {
+    "label": "Taal"
+  },
+  "Unauthorized": {
+    "title": "Toegang geweigerd",
+    "description": "Je hebt geen toegang tot dit portaal. Neem contact op met het bestuur als je denkt dat dit een fout is.",
+    "logout": "Uitloggen"
+  }
+}

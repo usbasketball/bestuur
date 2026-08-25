@@ -1,0 +1,36 @@
+{
+  "Metadata": {
+    "title": "Bestuur",
+    "description": "US Basketball bestuur portal"
+  },
+  "Nav": {
+    "home": "Home",
+    "login": "Log in",
+    "logout": "Log out",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "Home": {
+    "hero": {
+      "title": "U.S. Bestuur",
+      "tagline": "US Basketball Admin Portal"
+    },
+    "login": {
+      "title": "Log in",
+      "description": "Sign in to access the admin portal.",
+      "button": "Log in"
+    },
+    "welcome": {
+      "title": "Welcome back",
+      "logout": "Log out"
+    }
+  },
+  "LocaleSwitcher": {
+    "label": "Language"
+  },
+  "Unauthorized": {
+    "title": "Access denied",
+    "description": "You do not have permission to access this portal. If you believe this is a mistake, please contact the board.",
+    "logout": "Log out"
+  }
+}
