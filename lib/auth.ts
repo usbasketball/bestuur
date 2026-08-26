@@ -20,7 +20,7 @@ const REQUIRED_ROLE_ID = "rol_c3jdArQjGALiG1Gq";
  */
 function getUserRoleIds(user: Record<string, unknown>): string[] {
   const ns = process.env.AUTH0_DOMAIN;
-  const namespaced = ns ? user[`${ns}/roles`] : undefined;
+  const namespaced = ns ? user[`https://${ns}/roles`] : undefined;
   if (Array.isArray(namespaced)) return namespaced as string[];
 
   const plain = user.roles;
