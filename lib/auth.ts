@@ -20,18 +20,41 @@ const REQUIRED_ROLE_ID = "rol_c3jdArQjGALiG1Gq";
  */
 function getUserRoleIds(user: Record<string, unknown>): string[] {
   const ns = process.env.AUTH0_DOMAIN;
-  const namespaced = ns ? user[`https://${ns}/roles`] : undefined;
-  if (Array.isArray(namespaced)) return namespaced as string[];
+  const nsKey = `https://${ns}/roles`;
+  const namespaced = ns ? user[nsKey] : undefined;
+
+  console.log("[auth] AUTH0_DOMAIN:", ns);
+  console.log("[auth] Looking up namespaced claim key:", nsKey);
+  console.log("[auth] Namespaced claim value:", namespaced);
+  console.log("[auth] User keys:", Object.keys(user));
+
+  if (Array.isArray(namespaced)) {
+    console.log("[auth] Found roles via namespaced claim:", namespaced);
+    return namespaced as string[];
+  }
 
   const plain = user.roles;
-  if (Array.isArray(plain)) return plain as string[];
+  console.log("[auth] Plain roles claim value:", plain);
 
+  if (Array.isArray(plain)) {
+    console.log("[auth] Found roles via plain claim:", plain);
+    return plain as string[];
+  }
+
+  console.log("[auth] No roles found on user object");
   return [];
 }
 
 export function hasRequiredRole(
   user: Record<string, unknown> | undefined
 ): boolean {
-  if (!user) return false;
-  return getUserRoleIds(user).includes(REQUIRED_ROLE_ID);
+  if (!user) {
+    console.log("[auth] hasRequiredRole: no user provided");
+    return false;
+  }
+  const roles = getUserRoleIds(user);
+  const hasRole = roles.includes(REQUIRED_ROLE_ID);
+  console.log("[auth] Required role:", REQUIRED_ROLE_ID);
+  console.log("[auth] Has required role:", hasRole);
+  return hasRole;
 }
