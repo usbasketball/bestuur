@@ -23,6 +23,31 @@
     "welcome": {
       "title": "Welcome back",
       "logout": "Log out"
+    },
+    "help": {
+      "text": "Need help?"
+    }
+  },
+  "Dashboard": {
+    "title": "Bestuur",
+    "logout": "Log out",
+    "tabs": {
+      "members": "Members",
+      "games": "Games"
+    },
+    "members": {
+      "title": "Members",
+      "count": "{count, plural, =0 {No members} one {# member} other {# members}}",
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "nbb": "NBB #",
+        "refereeLevel": "Referee level"
+      }
+    },
+    "games": {
+      "title": "Games",
+      "comingSoon": "Coming soon."
     }
   },
   "LocaleSwitcher": {
