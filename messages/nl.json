@@ -23,6 +23,31 @@
     "welcome": {
       "title": "Welkom terug",
       "logout": "Uitloggen"
+    },
+    "help": {
+      "text": "Hulp nodig?"
+    }
+  },
+  "Dashboard": {
+    "title": "Bestuur",
+    "logout": "Uitloggen",
+    "tabs": {
+      "members": "Leden",
+      "games": "Wedstrijden"
+    },
+    "members": {
+      "title": "Leden",
+      "count": "{count, plural, =0 {Geen leden} one {# lid} other {# leden}}",
+      "columns": {
+        "name": "Naam",
+        "email": "E-mail",
+        "nbb": "NBB nr.",
+        "refereeLevel": "Scheidsrechtersniveau"
+      }
+    },
+    "games": {
+      "title": "Wedstrijden",
+      "comingSoon": "Binnenkort beschikbaar."
     }
   },
   "LocaleSwitcher": {

@@ -6,10 +6,20 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "prisma skills sync || exit 0",
+    "contract:emit": "prisma contract emit",
+    "db:init": "prisma db init",
+    "db:update": "prisma db update",
+    "db:migrate": "prisma migration plan && prisma db migrate",
+    "db:deploy": "prisma db migrate",
+    "sync:users": "node scripts/sync-users.mjs"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.27.0",
+    "@prisma/client": "^7.10.0",
+    "@prisma/orm-postgres": "^8.0.0-rc.8",
     "@sentry/nextjs": "^10.71.0",
     "@vercel/analytics": "^2.0.1",
     "next": "16.3.3",
@@ -24,6 +34,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.3",
+    "prisma": "^8.0.0-rc.12",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

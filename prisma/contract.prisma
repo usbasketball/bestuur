@@ -1,0 +1,16 @@
+model User {
+  id                String  @id @default(uuid())
+  auth0Sub          String? @unique @map("auth0_sub")
+  email             String  @unique
+  firstName         String? @map("first_name")
+  lastNamePrefix    String? @map("last_name_prefix")
+  lastName          String? @map("last_name")
+  nbbNumber         String? @unique @map("nbb_number")
+  foysUserId        String? @unique @map("foys_user_id")
+  refereeLevel      String? @map("referee_level")
+
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         temporal.updatedAt() @map("updated_at")
+
+  @@map("users")
+}
