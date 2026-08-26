@@ -24,6 +24,15 @@ export default async function proxy(request: NextRequest) {
     return authResponse;
   }
 
+  // Allow the unauthorized page through without role check
+  if (request.nextUrl.pathname.endsWith("/unauthorized")) {
+    const response = handleI18nRouting(request);
+    for (const [key, value] of authResponse.headers) {
+      response.headers.append(key, value);
+    }
+    return response;
+  }
+
   // Check if user is logged in and has the required role
   const session = await auth0.getSession(request);
   console.log("[auth] Session exists:", !!session);
