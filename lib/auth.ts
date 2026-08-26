@@ -16,14 +16,14 @@ const REQUIRED_ROLE_ID = "rol_c3jdArQjGALiG1Gq";
 /**
  * Auth0 stores roles as a custom claim on the user. The claim key depends on
  * the Auth0 tenant configuration — it may be namespaced
- * (`https://your-domain.auth0.com/roles`) or plain (`roles`).
+ * (`https://usbasketball.nl/roles`) or plain (`roles`).
  */
 function getUserRoleIds(user: Record<string, unknown>): string[] {
-  const ns = process.env.AUTH0_DOMAIN;
-  const nsKey = `https://${ns}/roles`;
-  const namespaced = ns ? user[nsKey] : undefined;
+  const ns = process.env.AUTH0_NAMESPACE ?? `https://${process.env.AUTH0_DOMAIN}`;
+  const nsKey = `${ns}/roles`;
+  const namespaced = user[nsKey];
 
-  console.log("[auth] AUTH0_DOMAIN:", ns);
+  console.log("[auth] AUTH0_NAMESPACE:", ns);
   console.log("[auth] Looking up namespaced claim key:", nsKey);
   console.log("[auth] Namespaced claim value:", namespaced);
   console.log("[auth] User keys:", Object.keys(user));
