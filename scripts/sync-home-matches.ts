@@ -21,6 +21,7 @@
 import { Pool, QueryResult } from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 import dotenv from "dotenv";
 import { mapFieldType, mapMatchStatus } from "../lib/types";
 
@@ -155,6 +156,17 @@ async function fetchMatchesForTeam(teamId: number): Promise<FoysMatch[]> {
   return allMatches;
 }
 
+// ── Artifacts (local dev inspection) ──────────────────────────────────────────
+
+const ARTIFACTS_DIR = path.join(rootDir, "scripts", "artifacts", "matches");
+
+function saveArtifact(filename: string, data: unknown): void {
+  fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+  const filePath = path.join(ARTIFACTS_DIR, filename);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  console.log(`  Saved artifact: ${filePath}`);
+}
+
 // ── Database ──────────────────────────────────────────────────────────────────
 
 interface DbTeam {
@@ -284,6 +296,8 @@ async function main(): Promise<void> {
       errors++;
       continue;
     }
+
+    saveArtifact(`${team.foys_team_id}.json`, matches);
 
     const homeMatches = matches.filter(
       (m) => m.homeOrganisation?.id === US_ORGANISATION_ID

@@ -20,6 +20,7 @@
 import { Pool, QueryResult } from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 import dotenv from "dotenv";
 import { REFEREE_LEVELS, TAG_CODE_TO_LEVEL } from "../lib/types";
 
@@ -76,7 +77,7 @@ interface FoysMemberDetail {
   memberSince: string | null;
 }
 
-async function fetchMemberSince(guid: string): Promise<string | null> {
+async function fetchMemberDetail(guid: string): Promise<FoysMemberDetail | null> {
   const res = await fetch(`${FOYS_API}/${guid}`, {
     headers: {
       Accept: "application/json",
@@ -85,8 +86,7 @@ async function fetchMemberSince(guid: string): Promise<string | null> {
     },
   });
   if (!res.ok) return null;
-  const data: FoysMemberDetail = await res.json();
-  return data.memberSince ?? null;
+  return (await res.json()) as FoysMemberDetail;
 }
 
 async function fetchAllFoysMembers(): Promise<FoysMembersResponse> {
@@ -247,6 +247,21 @@ async function fetchAllAuth0Users(): Promise<Auth0User[]> {
   return allUsers;
 }
 
+// ── Artifacts (local dev inspection) ──────────────────────────────────────────
+
+const ARTIFACTS_DIR = path.join(rootDir, "scripts", "artifacts");
+
+function ensureArtifactsDir(): void {
+  fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+}
+
+function saveArtifact(filename: string, data: unknown): void {
+  ensureArtifactsDir();
+  const filePath = path.join(ARTIFACTS_DIR, filename);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  console.log(`  Saved artifact: ${filePath}`);
+}
+
 // ── Database ──────────────────────────────────────────────────────────────────
 
 interface UpsertUserParams {
@@ -326,6 +341,8 @@ async function main(): Promise<void> {
   const { items } = await fetchAllFoysMembers();
   console.log(`Fetched ${items.length} members from FOYS.\n`);
 
+  saveArtifact("users.json", items);
+
   // 2. Fetch Auth0 users and build email → sub map
   console.log("Fetching users from Auth0...");
   const auth0Users = await fetchAllAuth0Users();
@@ -350,6 +367,7 @@ async function main(): Promise<void> {
   let updated = 0;
   let skipped = 0;
   let errors = 0;
+  const personDetailSamples: { guid: string; detail: FoysMemberDetail }[] = [];
 
   for (const member of items) {
     const email = member.email;
@@ -376,8 +394,13 @@ async function main(): Promise<void> {
     let memberSince = null;
     if (foysUserId) {
       try {
-        const since = await fetchMemberSince(foysUserId);
-        memberSince = since ? new Date(since) : null;
+        const detail = await fetchMemberDetail(foysUserId);
+        // Save a small sample of raw person-detail responses so the actual
+        // membership field shape is easy to inspect locally.
+        if (detail && personDetailSamples.length < 5) {
+          personDetailSamples.push({ guid: foysUserId, detail });
+        }
+        memberSince = detail?.memberSince ? new Date(detail.memberSince) : null;
       } catch {
         // Non-fatal — skip member-since fetch for this member
       }
@@ -416,6 +439,10 @@ async function main(): Promise<void> {
   }
 
   await pool.end();
+
+  if (personDetailSamples.length > 0) {
+    saveArtifact("person-detail.sample.json", personDetailSamples);
+  }
 
   console.log(
     `\nDone. Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors}`

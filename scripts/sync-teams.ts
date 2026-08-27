@@ -17,6 +17,7 @@
 import { Pool, QueryResult } from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 import dotenv from "dotenv";
 import { mapTeamType, TeamType, Discipline } from "../lib/types";
 
@@ -98,6 +99,17 @@ async function fetchAllFoysTeams(): Promise<FoysTeamsResponse> {
   return { totalCount, items: allTeams };
 }
 
+// ── Artifacts (local dev inspection) ──────────────────────────────────────────
+
+const ARTIFACTS_DIR = path.join(rootDir, "scripts", "artifacts");
+
+function saveArtifact(filename: string, data: unknown): void {
+  fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
+  const filePath = path.join(ARTIFACTS_DIR, filename);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  console.log(`  Saved artifact: ${filePath}`);
+}
+
 // ── Database ──────────────────────────────────────────────────────────────────
 
 interface UpsertTeamParams {
@@ -134,6 +146,8 @@ async function main(): Promise<void> {
   console.log("Fetching teams from FOYS API...");
   const { items } = await fetchAllFoysTeams();
   console.log(`Fetched ${items.length} teams from FOYS.\n`);
+
+  saveArtifact("teams.json", items);
 
   // 2. Connect to database
   const pool = new Pool({ connectionString: DATABASE_URL });
