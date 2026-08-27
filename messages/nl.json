@@ -1,6 +1,6 @@
 {
   "Metadata": {
-    "title": "Bestuur",
+    "title": "U.S. Bestuur",
     "description": "US Basketball bestuur portaal"
   },
   "Nav": {
@@ -29,11 +29,12 @@
     }
   },
   "Dashboard": {
-    "title": "Bestuur",
+    "title": "U.S. Bestuur",
     "logout": "Uitloggen",
     "tabs": {
       "members": "Leden",
-      "games": "Wedstrijden"
+      "teams": "Competitieteams",
+      "matches": "Wedstrijden"
     },
     "members": {
       "title": "Leden",
@@ -45,9 +46,29 @@
         "refereeLevel": "Scheidsrechtersniveau"
       }
     },
-    "games": {
-      "title": "Wedstrijden",
-      "comingSoon": "Binnenkort beschikbaar."
+    "teams": {
+      "title": "Competitieteams",
+      "count": "{count, plural, =0 {Geen teams} one {# team} other {# teams}}",
+      "columns": {
+        "type": "Type",
+        "name": "Naam",
+        "season": "Seizoen",
+        "discipline": "Discipline",
+        "foysId": "FOYS ID"
+      }
+    },
+    "matches": {
+      "title": "Thuis Wedstrijden",
+      "count": "{count, plural, =0 {Geen wedstrijden} one {# wedstrijd} other {# wedstrijden}}",
+      "columns": {
+        "date": "Datum",
+        "time": "Tijd",
+        "homeTeam": "Thuis",
+        "awayTeam": "Uit",
+        "score": "Score",
+        "status": "Status",
+        "field": "Veld"
+      }
     }
   },
   "LocaleSwitcher": {

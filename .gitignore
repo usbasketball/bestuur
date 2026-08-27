@@ -44,3 +44,4 @@ next-env.d.ts
 # prisma (generated artifacts)
 prisma/contract.json
 prisma/contract.d.ts
+migrations/
