@@ -77,15 +77,9 @@ Team names are mapped from FOYS using `mapTeamType()` in `lib/constants.ts`:
 
 | Role | Access | Used by |
 |---|---|---|
-| `neondb_owner` | Full access (all tables) | bestuur app |
-| `usbasketballnl_app` | INSERT only on `interest_submissions` | usbasketballnl app |
-
-The `usbasketballnl_app` role was created via the Neon API. To grant additional permissions later:
-
-```sql
-GRANT SELECT ON users TO usbasketballnl_app;
-GRANT SELECT ON competition_teams TO usbasketballnl_app;
-```
+| `neon_db` | Admin (default Neon role) | Neon console / migrations admin |
+| `bestuur` | Full access; owns schema (creates via `db:update`) | bestuur app |
+| `usbasketball` | Read-only on shared tables + INSERT on `interest_submissions` | usbasketballnl app |
 
 ## Contract Workflow
 
