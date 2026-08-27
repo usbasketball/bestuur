@@ -17,10 +17,11 @@
 //   AUTH0_M2M_CLIENT_SECRET   M2M app client secret
 //   FOYS_API_KEY              Foys bearer token
 
-import { Pool } from "pg";
+import { Pool, QueryResult } from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import { REFEREE_LEVELS, TAG_CODE_TO_LEVEL } from "../lib/types";
 
 const dryRun = !process.argv.includes("--live");
 
@@ -55,14 +56,23 @@ const FOYS_API = "https://api.foys.io/foys/api/v1/management/people";
 const FOYS_TAGS_API = "https://api.foys.io/foys/api/v1/management/person-tags/federation-person";
 const PAGE_SIZE = 500;
 
-// Referee diploma hierarchy (lowest → highest)
-// FOYS tag codes → canonical level names
-// Legacy: F (equivalent to BS2), E (equivalent to BS3)
-// Current: BS2, BS3, BS4
-const REFEREE_LEVELS = ["F", "BS2", "E", "BS3", "BS4"];
-const TAG_CODE_TO_LEVEL = { F: "F", SF: "F", E: "E", SE: "E", BS2: "BS2", BS3: "BS3", BS4: "BS4" };
+interface FoysMember {
+  fullName: string | null;
+  email: string | null;
+  federationMembershipIdentifier: string | null;
+  guid: string | null;
+}
 
-async function fetchAllFoysMembers() {
+interface FoysMembersResponse {
+  totalCount: number;
+  items: FoysMember[];
+}
+
+interface FoysTag {
+  tagCode: string;
+}
+
+async function fetchAllFoysMembers(): Promise<FoysMembersResponse> {
   const allMembers = [];
   let skip = 0;
   let totalCount = Infinity;
@@ -91,7 +101,7 @@ async function fetchAllFoysMembers() {
       throw new Error(`Foys API ${res.status}: ${body}`);
     }
 
-    const data = await res.json();
+    const data: FoysMembersResponse = await res.json();
     totalCount = data.totalCount;
     allMembers.push(...data.items);
     skip += PAGE_SIZE;
@@ -101,7 +111,7 @@ async function fetchAllFoysMembers() {
   return { totalCount, items: allMembers };
 }
 
-async function fetchRefereeLevel(nbbNumber) {
+async function fetchRefereeLevel(nbbNumber: string): Promise<string | null> {
   const url = `${FOYS_TAGS_API}/${nbbNumber}/tag-type/3?federationMembershipIdentifier=${nbbNumber}&activeOnly=true&tagType=3`;
   const res = await fetch(url, {
     headers: {
@@ -111,11 +121,11 @@ async function fetchRefereeLevel(nbbNumber) {
     },
   });
   if (!res.ok) return null;
-  const tags = await res.json();
+  const tags: FoysTag[] = await res.json();
   if (!Array.isArray(tags) || tags.length === 0) return null;
 
   let highestIdx = -1;
-  let highestLevel = null;
+  let highestLevel: string | null = null;
   for (const tag of tags) {
     const level = TAG_CODE_TO_LEVEL[tag.tagCode];
     if (!level) continue;
@@ -132,9 +142,13 @@ async function fetchRefereeLevel(nbbNumber) {
 
 const AUTH0_API = `https://${AUTH0_M2M_DOMAIN}/api/v2`;
 
-let accessToken;
+let accessToken: string | null = null;
 
-async function getToken() {
+interface Auth0TokenResponse {
+  access_token: string;
+}
+
+async function getToken(): Promise<string> {
   const res = await fetch(`https://${AUTH0_M2M_DOMAIN}/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -149,15 +163,15 @@ async function getToken() {
     const body = await res.text();
     throw new Error(`Auth0 token request failed (${res.status}): ${body}`);
   }
-  const data = await res.json();
+  const data: Auth0TokenResponse = await res.json();
   return data.access_token;
 }
 
-function sleep(ms) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function mgmtFetch(apiPath, options = {}, retries = 3) {
+async function mgmtFetch(apiPath: string, options: RequestInit = {}, retries = 3): Promise<unknown> {
   if (!accessToken) accessToken = await getToken();
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -187,17 +201,26 @@ async function mgmtFetch(apiPath, options = {}, retries = 3) {
   throw new Error(`Too many retries for ${apiPath}`);
 }
 
-async function fetchAllAuth0Users() {
-  const allUsers = [];
+interface Auth0User {
+  email: string;
+  user_id: string;
+}
+
+interface Auth0UsersResponse {
+  users: Auth0User[];
+}
+
+async function fetchAllAuth0Users(): Promise<Auth0User[]> {
+  const allUsers: Auth0User[] = [];
   let page = 0;
   const perPage = 100;
 
   while (true) {
-    const data = await mgmtFetch(
+    const data = (await mgmtFetch(
       `/users?per_page=${perPage}&page=${page}&include_totals=true`
-    );
+    )) as Auth0UsersResponse | Auth0User[];
 
-    const users = data?.users ?? (Array.isArray(data) ? data : []);
+    const users = Array.isArray(data) ? data : data?.users ?? [];
     allUsers.push(...users);
     if (users.length < perPage) break;
     page++;
@@ -209,7 +232,18 @@ async function fetchAllAuth0Users() {
 
 // ── Database ──────────────────────────────────────────────────────────────────
 
-async function upsertUser(pool, { email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel }) {
+interface UpsertUserParams {
+  email: string;
+  firstName: string | null;
+  lastNamePrefix: string | null;
+  lastName: string | null;
+  nbbNumber: string | null;
+  foysUserId: string | null;
+  auth0Sub: string | null;
+  refereeLevel: string | null;
+}
+
+async function upsertUser(pool: Pool, { email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel }: UpsertUserParams): Promise<QueryResult> {
   const query = `
     INSERT INTO users (id, email, first_name, last_name_prefix, last_name, nbb_number, foys_user_id, auth0_sub, referee_level, created_at, updated_at)
     VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, now(), now())
@@ -234,7 +268,13 @@ const DUTCH_PREFIXES = [
   "van", "den", "der", "de", "het", "ten", "ter", "te",
 ];
 
-function splitName(member) {
+interface SplitNameResult {
+  firstName: string | null;
+  lastNamePrefix: string | null;
+  lastName: string | null;
+}
+
+function splitName(member: FoysMember): SplitNameResult {
   const fullName = (member.fullName || "").trim();
   if (!fullName) return { firstName: null, lastNamePrefix: null, lastName: null };
 
@@ -257,7 +297,7 @@ function splitName(member) {
   return { firstName, lastNamePrefix: null, lastName: rest.join(" ") };
 }
 
-async function main() {
+async function main(): Promise<void> {
   if (dryRun) {
     console.log("=== DRY RUN (no database writes) ===\n");
   }
@@ -270,7 +310,7 @@ async function main() {
   // 2. Fetch Auth0 users and build email → sub map
   console.log("Fetching users from Auth0...");
   const auth0Users = await fetchAllAuth0Users();
-  const emailToSub = new Map();
+  const emailToSub = new Map<string, string>();
   for (const user of auth0Users) {
     if (user.email && user.user_id) {
       emailToSub.set(user.email.toLowerCase(), user.user_id);
@@ -301,9 +341,9 @@ async function main() {
     }
 
     const { firstName, lastNamePrefix, lastName } = splitName(member);
-    const nbbNumber = member.federationMembershipIdentifier || null;
-    const foysUserId = member.guid || null;
-    const auth0Sub = emailToSub.get(email.toLowerCase()) || null;
+    const nbbNumber: string | null = member.federationMembershipIdentifier || null;
+    const foysUserId: string | null = member.guid || null;
+    const auth0Sub: string | null = emailToSub.get(email.toLowerCase()) || null;
 
     let refereeLevel = null;
     if (nbbNumber) {
@@ -338,8 +378,9 @@ async function main() {
         console.log(`Updated: ${member.fullName} (${email})`);
         updated++;
       }
-    } catch (err) {
-      console.error(`Error for ${member.fullName} (${email}): ${err.message}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`Error for ${member.fullName} (${email}): ${message}`);
       errors++;
     }
   }

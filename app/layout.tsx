@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/react";
 
 export const metadata: Metadata = {
-  title: "Bestuur",
+  title: "U.S. Bestuur",
   description: "US Basketball bestuur portal",
 };
 

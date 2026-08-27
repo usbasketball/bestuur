@@ -16,7 +16,7 @@ const bebasNeue = Bebas_Neue({
 });
 
 export const metadata: Metadata = {
-  title: "Bestuur",
+  title: "U.S. Bestuur",
   description: "US Basketball bestuur portal",
 };
 

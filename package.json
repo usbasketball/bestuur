@@ -12,9 +12,10 @@
     "contract:emit": "prisma contract emit",
     "db:init": "prisma db init",
     "db:update": "prisma db update",
-    "db:migrate": "prisma migration plan && prisma db migrate",
     "db:deploy": "prisma db migrate",
-    "sync:users": "node scripts/sync-users.mjs"
+    "sync:users": "tsx scripts/sync-users.ts",
+    "sync:teams": "tsx scripts/sync-teams.ts",
+    "sync:matches": "tsx scripts/sync-home-matches.ts"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.27.0",
@@ -22,6 +23,7 @@
     "@prisma/orm-postgres": "^8.0.0-rc.8",
     "@sentry/nextjs": "^10.71.0",
     "@vercel/analytics": "^2.0.1",
+    "lucide-react": "^1.34.0",
     "next": "16.3.3",
     "next-intl": "^4.13.7",
     "react": "19.2.8",
@@ -36,6 +38,7 @@
     "eslint-config-next": "16.3.3",
     "prisma": "^8.0.0-rc.12",
     "tailwindcss": "^4",
+    "tsx": "^4.23.12",
     "typescript": "^5"
   }
 }

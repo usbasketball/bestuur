@@ -10,7 +10,7 @@ Service for US basketball board (bestuur) administration.
 | Styling | Tailwind CSS v4 |
 | i18n | next-intl (locale routing, EN + NL) |
 | Auth | Auth0 (`@auth0/nextjs-auth0`) — Universal Login |
-| DB | PostgreSQL + Prisma 8 ORM |
+| DB | PostgreSQL + Prisma 8 ORM (contract workflow) |
 | Deploy | Vercel (native Git integration) |
 
 ## Getting Started
@@ -51,42 +51,13 @@ Open [http://localhost:3000](http://localhost:3000). The app is available under 
 
 ## Database
 
-The schema is defined in `prisma/contract.prisma` and currently contains a single `User` model:
+PostgreSQL on Neon, shared with the [usbasketballnl](https://github.com/usbasketball/usbasketballnl) app. Schema defined in `prisma/contract.prisma` using the Prisma 8 contract workflow.
 
-| Column | Type | Description |
-|---|---|---|
-| `id` | text (uuid) | Primary key |
-| `auth0_sub` | text? | Auth0 user ID (unique) |
-| `email` | text | Email address (unique) |
-| `first_name` | text? | First name |
-| `last_name_prefix` | text? | Dutch name prefix (e.g. "van", "de") |
-| `last_name` | text? | Last name |
-| `nbb_number` | text? | NBB federation membership number (unique) |
-| `foys_user_id` | text? | FOYS GUID (unique) |
-| `referee_level` | text? | Highest referee diploma (e.g. "Scheidsrechter E-diploma") |
-| `created_at` | timestamptz | Row creation time |
-| `updated_at` | timestamptz | Last modification time |
+See [doc/database.md](doc/database.md) for models, enums, roles, and schema change workflow.
 
-After changing the contract, re-emit and re-sign:
+## Syncing Data from FOYS
 
-```bash
-npm run contract:emit
-npx prisma db sign
-```
-
-## Syncing Users
-
-The `sync:users` script fetches active members from [FOYS](https://foys.io), links
-Auth0 identities by email, fetches referee diplomas, and upserts everything into the
-local `users` table.
-
-```bash
-npm run sync:users          # dry run (default)
-npm run sync:users -- --live   # write to the database
-```
-
-Requires `FOYS_API_KEY`, `AUTH0_M2M_DOMAIN`, `AUTH0_M2M_CLIENT_ID`, and
-`AUTH0_M2M_CLIENT_SECRET` in your `.env.local`.
+See [doc/syncing.md](doc/syncing.md) for all sync scripts (users, teams, home matches).
 
 ## Scripts
 
@@ -100,6 +71,25 @@ Requires `FOYS_API_KEY`, `AUTH0_M2M_DOMAIN`, `AUTH0_M2M_CLIENT_ID`, and
 | `npm run contract:emit` | Emit the Prisma contract (`prisma/contract.json` + `contract.d.ts`) |
 | `npm run db:init` | Bootstrap a new database to match the current contract |
 | `npm run db:update` | Update the database schema to match the contract (safe for existing tables) |
-| `npm run db:migrate` | Plan and apply a migration |
-| `npm run db:deploy` | Apply pending migrations (production) |
 | `npm run sync:users` | Sync users from FOYS + Auth0 (dry run by default; add `--live` to write) |
+| `npm run sync:teams` | Sync teams from FOYS (dry run by default; add `--live` to write) |
+| `npm run sync:matches` | Sync home matches from FOYS (dry run by default; add `--live` to write) |
+
+## Project Structure
+
+```
+bestuur/
+├── app/                    # Next.js App Router pages
+├── doc/                    # Documentation
+│   ├── database.md         # Database models, roles, and schema workflow
+│   └── syncing.md          # FOYS sync scripts (users, teams, matches)
+├── lib/                    # Shared utilities and constants
+│   └── types/              # REFEREE_LEVELS, TAG_CODE_TO_LEVEL, TEAM_TYPES, mapTeamType
+├── prisma/
+│   └── contract.prisma     # Database schema (source of truth)
+├── scripts/
+│   ├── sync-users.ts       # FOYS + Auth0 user sync
+│   ├── sync-teams.ts       # FOYS team sync
+│   └── sync-home-matches.ts # FOYS home match sync
+└── ...
+```
