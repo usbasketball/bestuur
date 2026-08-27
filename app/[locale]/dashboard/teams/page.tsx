@@ -1,20 +1,11 @@
 import { setRequestLocale } from "next-intl/server";
 import { getTranslations } from "next-intl/server";
 import { ExternalLink } from "lucide-react";
-import { pool } from "@/lib/db";
+import { db } from "@/lib/db";
 import { foysTeamUrl, formatDiscipline } from "@/lib/types";
 
 type Props = {
   params: Promise<{ locale: string }>;
-};
-
-type Team = {
-  id: string;
-  foys_team_id: number;
-  name: string | null;
-  season: string;
-  team_type: string;
-  discipline: string;
 };
 
 export default async function TeamsPage({ params }: Props) {
@@ -23,11 +14,16 @@ export default async function TeamsPage({ params }: Props) {
 
   const t = await getTranslations("Dashboard.teams");
 
-  const { rows } = await pool.query<Team>(
-    `SELECT id, foys_team_id, name, season, team_type, discipline
-     FROM competition_teams
-     ORDER BY season DESC, team_type`
-  );
+  const teams = await db.orm.public.CompetitionTeam.select(
+    "id",
+    "foysTeamId",
+    "name",
+    "season",
+    "teamType",
+    "discipline",
+  )
+    .orderBy([(t) => t.season.desc(), (t) => t.teamType.asc()])
+    .all();
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -35,7 +31,7 @@ export default async function TeamsPage({ params }: Props) {
         {t("title")}
       </h1>
       <p className="mt-1 text-sm text-ink-muted">
-        {t("count", { count: rows.length })}
+        {t("count", { count: teams.length })}
       </p>
 
       <div className="mt-6 overflow-x-auto">
@@ -51,11 +47,11 @@ export default async function TeamsPage({ params }: Props) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((team) => (
+            {teams.map((team) => (
               <tr key={team.id} className="border-b border-line/50">
                 <td className="py-3 pr-4">
                   <a
-                    href={foysTeamUrl(team.foys_team_id)}
+                    href={foysTeamUrl(team.foysTeamId)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex text-ink-muted transition-colors hover:text-accent"
@@ -64,12 +60,12 @@ export default async function TeamsPage({ params }: Props) {
                     <ExternalLink className="h-4 w-4" />
                   </a>
                 </td>
-                <td className="py-3 pr-4 font-mono text-ink">{team.team_type}</td>
+                <td className="py-3 pr-4 font-mono text-ink">{team.teamType}</td>
                 <td className="py-3 pr-4 text-ink">{team.name ?? "—"}</td>
                 <td className="py-3 pr-4 text-ink-muted">{team.season}</td>
                 <td className="py-3 pr-4 text-ink-muted">{formatDiscipline(team.discipline)}</td>
                 <td className="py-3 font-mono text-xs text-ink-muted">
-                  {team.foys_team_id}
+                  {team.foysTeamId}
                 </td>
               </tr>
             ))}

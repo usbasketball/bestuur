@@ -1,7 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
 import { getTranslations } from "next-intl/server";
 import { ExternalLink } from "lucide-react";
-import { pool } from "@/lib/db";
+import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { formatFieldType, foysMatchUrl } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
@@ -24,23 +24,6 @@ type Props = {
   searchParams: Promise<{ season?: string }>;
 };
 
-type Match = {
-  id: string;
-  foys_match_id: number;
-  status: string;
-  date: string;
-  start_time: string | null;
-  home_score: number | null;
-  away_score: number | null;
-  home_team_foys_id: number;
-  away_team_foys_id: number;
-  away_team_name: string | null;
-  away_organisation_name: string | null;
-  field: string | null;
-  home_team_name: string | null;
-  home_team_type: string | null;
-};
-
 export default async function MatchesPage({ params, searchParams }: Props) {
   const { locale } = await params;
   const { season: rawSeason } = await searchParams;
@@ -54,17 +37,35 @@ export default async function MatchesPage({ params, searchParams }: Props) {
     redirect(`/dashboard/matches?season=${season}`);
   }
 
-  const { rows: matches } = await pool.query<Match>(
-    `SELECT m.id, m.foys_match_id, m.status, to_char(m.date, 'YYYY-MM-DD') AS date, m.start_time,
-            m.home_score, m.away_score, m.home_team_foys_id, m.away_team_foys_id,
-            m.away_team_name, m.away_organisation_name, m.field,
-            ct.name AS home_team_name, ct.team_type AS home_team_type
-     FROM matches m
-     JOIN competition_teams ct ON ct.foys_team_id = m.home_team_foys_id
-     WHERE ct.season = $1
-     ORDER BY m.date, m.start_time`,
-    [season]
+  const homeTeams = await db.orm.public.CompetitionTeam.select(
+    "foysTeamId",
+    "name",
+    "teamType",
+  )
+    .where((t) => t.season.eq(season))
+    .all();
+
+  const homeTeamByFoysId = new Map(
+    homeTeams.map((t) => [t.foysTeamId, t.name ?? t.teamType] as const),
   );
+
+  const matches = await db.orm.public.Match.select(
+    "id",
+    "foysMatchId",
+    "status",
+    "date",
+    "startTime",
+    "homeScore",
+    "awayScore",
+    "homeTeamFoysId",
+    "awayTeamFoysId",
+    "awayTeamName",
+    "awayOrganisationName",
+    "field",
+  )
+    .where((m) => m.homeTeamFoysId.in([...homeTeamByFoysId.keys()]))
+    .orderBy([(m) => m.date.asc(), (m) => m.startTime.asc()])
+    .all();
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -94,20 +95,22 @@ export default async function MatchesPage({ params, searchParams }: Props) {
           </thead>
           <tbody>
             {matches.map((match) => {
-              const homeLabel = match.home_team_name ?? match.home_team_type ?? String(match.home_team_foys_id);
-              const awayLabel = match.away_organisation_name
-                ? `${match.away_organisation_name} - ${match.away_team_name}`
-                : match.away_team_name ?? String(match.away_team_foys_id);
+              const homeLabel =
+                homeTeamByFoysId.get(match.homeTeamFoysId) ??
+                String(match.homeTeamFoysId);
+              const awayLabel = match.awayOrganisationName
+                ? `${match.awayOrganisationName} - ${match.awayTeamName}`
+                : match.awayTeamName ?? String(match.awayTeamFoysId);
               const score =
-                match.home_score != null
-                  ? `${match.home_score} – ${match.away_score}`
+                match.homeScore != null
+                  ? `${match.homeScore} – ${match.awayScore}`
                   : "—";
 
               return (
                 <tr key={match.id} className="border-b border-line/50">
                   <td className="py-3 pr-4">
                     <a
-                      href={foysMatchUrl(match.foys_match_id)}
+                      href={foysMatchUrl(match.foysMatchId)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex text-ink-muted transition-colors hover:text-accent"
@@ -116,9 +119,11 @@ export default async function MatchesPage({ params, searchParams }: Props) {
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   </td>
-                  <td className="py-3 pr-4 text-ink">{match.date}</td>
+                  <td className="py-3 pr-4 text-ink">
+                    {match.date.toISOString().slice(0, 10)}
+                  </td>
                   <td className="py-3 pr-4 text-ink-muted">
-                    {match.start_time?.slice(0, 5) ?? "—"}
+                    {match.startTime?.slice(0, 5) ?? "—"}
                   </td>
                   <td className="py-3 pr-4 font-medium text-ink">{homeLabel}</td>
                   <td className="py-3 pr-4 text-ink-muted">{awayLabel}</td>
