@@ -41,10 +41,15 @@
       "count": "{count, plural, =0 {No members} one {# member} other {# members}}",
       "columns": {
         "name": "Name",
+        "membershipType": "Type",
         "email": "Email",
         "nbb": "NBB #",
         "refereeLevel": "Referee level",
         "memberSince": "Member since"
+      },
+      "membershipTypes": {
+        "COMPETITION": "Competition",
+        "RECREATIONAL": "Recreational"
       },
       "openInFoys": "Open in FOYS"
     },
