@@ -1,7 +1,7 @@
 ## What
 
-A summary of the changes in this PR.
+<!-- A summary of the changes in this PR. -->
 
 ## Why
 
-The motivation or problem this PR addresses.
+<!-- The motivation or problem this PR addresses. -->
