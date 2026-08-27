@@ -21,6 +21,7 @@ Board members synced from FOYS + Auth0.
 | `nbbNumber` | text? | `nbb_number` | UNIQUE |
 | `foysUserId` | text? | `foys_user_id` | UNIQUE |
 | `refereeLevel` | text? | `referee_level` | |
+| `memberSince` | datetime | `member_since` | |
 | `createdAt` | datetime | `created_at` | DEFAULT now() |
 | `updatedAt` | datetime | `updated_at` | auto-updated |
 
@@ -59,6 +60,27 @@ Interest form submissions from usbasketball.nl.
 | `locale` | text | `locale` | DEFAULT 'nl' |
 | `createdAt` | datetime | `created_at` | DEFAULT now() |
 
+### ClubMembership
+
+A person's club membership in a season, linked to a `User`. Synced from FOYS by
+`sync:club-memberships` (only the club's own plans, not federation match-licences).
+
+| Column | Type | DB column | Constraints |
+|---|---|---|---|
+| `id` | text (uuid) | `id` | PK, auto-generated |
+| `userId` | text (uuid) | `user_id` | FK → users.id, NOT NULL |
+| `season` | text | `season` | NOT NULL |
+| `primaryTeam` | TeamType? | `primary_team` | |
+| `registeredTeam` | TeamType? | `registered_team` | |
+| `membershipType` | ClubMembershipType | `membership_type` | NOT NULL |
+| `cancelledAt` | datetime | `cancelled_at` | |
+| `createdAt` | datetime | `created_at` | DEFAULT now() |
+| `updatedAt` | datetime | `updated_at` | auto-updated |
+
+Unique constraint: `(user_id, season)` (one club membership per user per season)
+Indexed: `season`
+Table name: `club_memberships`
+
 ## Enums
 
 ### TeamType
@@ -72,6 +94,16 @@ Interest form submissions from usbasketball.nl.
 Team names are mapped from FOYS using `mapTeamType()` in `lib/constants.ts`:
 - Strip `-`, `*`, whitespace, uppercase: `"MSE-2"` → `MSE2`, `"VSE-6**"` → `VSE6`
 - Fallback: if disciplines contain `"3x3 Basketball"`, map to `V3x3`
+
+### ClubMembershipType
+
+| Value | Description |
+|---|---|
+| `COMPETITION` | Competition/first-team membership |
+| `RECREATIONAL` | Recreational membership |
+
+Mapped from FOYS club plan names using `mapPlanMembershipType()` in
+`lib/types/club-membership-type.ts`.
 
 ## Database Roles
 

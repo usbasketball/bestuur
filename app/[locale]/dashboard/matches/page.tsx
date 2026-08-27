@@ -1,8 +1,9 @@
 import { setRequestLocale } from "next-intl/server";
 import { getTranslations } from "next-intl/server";
+import { ExternalLink } from "lucide-react";
 import { pool } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { formatFieldType } from "@/lib/types";
+import { formatFieldType, foysMatchUrl } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
 
 const SEASONS = [
@@ -81,13 +82,14 @@ export default async function MatchesPage({ params, searchParams }: Props) {
         <table className="w-full text-left text-sm">
           <thead>
             <tr className="border-b border-line text-xs uppercase tracking-wider text-ink-muted">
-              <th className="pb-3 pr-4 font-medium">{t("columns.date")}</th>
-              <th className="pb-3 pr-4 font-medium">{t("columns.time")}</th>
-              <th className="pb-3 pr-4 font-medium">{t("columns.homeTeam")}</th>
-              <th className="pb-3 pr-4 font-medium">{t("columns.awayTeam")}</th>
-              <th className="pb-3 pr-4 font-medium">{t("columns.score")}</th>
-              <th className="pb-3 pr-4 font-medium">{t("columns.status")}</th>
-              <th className="pb-3 font-medium">{t("columns.field")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium" aria-label={t("openInFoys")} />
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.date")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.time")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.homeTeam")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.awayTeam")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.score")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.status")}</th>
+              <th className="sticky top-0 bg-white pb-3 font-medium">{t("columns.field")}</th>
             </tr>
           </thead>
           <tbody>
@@ -103,6 +105,17 @@ export default async function MatchesPage({ params, searchParams }: Props) {
 
               return (
                 <tr key={match.id} className="border-b border-line/50">
+                  <td className="py-3 pr-4">
+                    <a
+                      href={foysMatchUrl(match.foys_match_id)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex text-ink-muted transition-colors hover:text-accent"
+                      aria-label={t("openInFoys")}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  </td>
                   <td className="py-3 pr-4 text-ink">{match.date}</td>
                   <td className="py-3 pr-4 text-ink-muted">
                     {match.start_time?.slice(0, 5) ?? "—"}

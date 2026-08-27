@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# sync script raw API artifacts (local dev inspection only)
+scripts/artifacts/
+
 # vercel
 .vercel
 

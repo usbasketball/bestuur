@@ -15,7 +15,8 @@
     "db:deploy": "prisma db migrate",
     "sync:users": "tsx scripts/sync-users.ts",
     "sync:teams": "tsx scripts/sync-teams.ts",
-    "sync:matches": "tsx scripts/sync-home-matches.ts"
+    "sync:matches": "tsx scripts/sync-home-matches.ts",
+    "sync:club-memberships": "tsx scripts/sync-club-memberships.ts"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.27.0",

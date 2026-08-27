@@ -41,10 +41,17 @@
       "count": "{count, plural, =0 {No members} one {# member} other {# members}}",
       "columns": {
         "name": "Name",
+        "membershipType": "Type",
         "email": "Email",
         "nbb": "NBB #",
-        "refereeLevel": "Referee level"
-      }
+        "refereeLevel": "Referee level",
+        "memberSince": "Member since"
+      },
+      "membershipTypes": {
+        "COMPETITION": "Competition",
+        "RECREATIONAL": "Recreational"
+      },
+      "openInFoys": "Open in FOYS"
     },
     "teams": {
       "title": "Competition Teams",
@@ -55,7 +62,8 @@
         "season": "Season",
         "discipline": "Discipline",
         "foysId": "FOYS ID"
-      }
+      },
+      "openInFoys": "Open in FOYS"
     },
     "matches": {
       "title": "Home Matches",
@@ -68,7 +76,8 @@
         "score": "Score",
         "status": "Status",
         "field": "Field"
-      }
+      },
+      "openInFoys": "Open in FOYS"
     }
   },
   "LocaleSwitcher": {

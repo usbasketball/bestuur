@@ -41,10 +41,17 @@
       "count": "{count, plural, =0 {Geen leden} one {# lid} other {# leden}}",
       "columns": {
         "name": "Naam",
+        "membershipType": "Type",
         "email": "E-mail",
         "nbb": "NBB nr.",
-        "refereeLevel": "Scheidsrechtersniveau"
-      }
+        "refereeLevel": "Scheidsrechtersniveau",
+        "memberSince": "Lid sinds"
+      },
+      "membershipTypes": {
+        "COMPETITION": "Competitie",
+        "RECREATIONAL": "Recreatief"
+      },
+      "openInFoys": "Openen in FOYS"
     },
     "teams": {
       "title": "Competitieteams",
@@ -55,7 +62,8 @@
         "season": "Seizoen",
         "discipline": "Discipline",
         "foysId": "FOYS ID"
-      }
+      },
+      "openInFoys": "Openen in FOYS"
     },
     "matches": {
       "title": "Thuis Wedstrijden",
@@ -68,7 +76,8 @@
         "score": "Score",
         "status": "Status",
         "field": "Veld"
-      }
+      },
+      "openInFoys": "Openen in FOYS"
     }
   },
   "LocaleSwitcher": {

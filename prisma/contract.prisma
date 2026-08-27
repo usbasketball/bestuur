@@ -33,6 +33,11 @@ enum MatchStatus {
   WITHDRAWN
 }
 
+enum ClubMembershipType {
+  COMPETITION
+  RECREATIONAL
+}
+
 model CompetitionTeam {
   id          String     @id @default(uuid())
   foysTeamId  Int        @unique @map("foys_team_id")
@@ -104,9 +109,31 @@ model User {
   nbbNumber         String? @unique @map("nbb_number")
   foysUserId        String? @unique @map("foys_user_id")
   refereeLevel      String? @map("referee_level")
+  memberSince       DateTime? @map("member_since")
+
+  memberships       ClubMembership[]
 
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         temporal.updatedAt() @map("updated_at")
 
   @@map("users")
+}
+
+model ClubMembership {
+  id              String          @id @default(uuid())
+  userId          String          @map("user_id")
+  season          String
+  primaryTeam     TeamType?       @map("primary_team")
+  registeredTeam  TeamType?       @map("registered_team")
+  membershipType  ClubMembershipType  @map("membership_type")
+  cancelledAt  DateTime?       @map("cancelled_at")
+
+  user            User            @relation(fields: [userId], references: [id])
+
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       temporal.updatedAt() @map("updated_at")
+
+  @@unique([userId, season])
+  @@index([season])
+  @@map("club_memberships")
 }
