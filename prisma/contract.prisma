@@ -104,6 +104,7 @@ model User {
   nbbNumber         String? @unique @map("nbb_number")
   foysUserId        String? @unique @map("foys_user_id")
   refereeLevel      String? @map("referee_level")
+  memberSince       DateTime? @map("member_since")
 
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         temporal.updatedAt() @map("updated_at")

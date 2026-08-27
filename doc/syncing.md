@@ -3,8 +3,8 @@
 ## Users
 
 The `sync:users` script fetches active members from [FOYS](https://foys.io), links
-Auth0 identities by email, fetches referee diplomas, and upserts everything into the
-local `users` table.
+Auth0 identities by email, fetches referee diplomas and member-since dates, and
+upserts everything into the local `users` table.
 
 ```bash
 npm run sync:users          # dry run (default)

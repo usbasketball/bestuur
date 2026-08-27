@@ -72,6 +72,23 @@ interface FoysTag {
   tagCode: string;
 }
 
+interface FoysMemberDetail {
+  memberSince: string | null;
+}
+
+async function fetchMemberSince(guid: string): Promise<string | null> {
+  const res = await fetch(`${FOYS_API}/${guid}`, {
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${FOYS_API_KEY}`,
+      "X-Cluster": "cluster-default",
+    },
+  });
+  if (!res.ok) return null;
+  const data: FoysMemberDetail = await res.json();
+  return data.memberSince ?? null;
+}
+
 async function fetchAllFoysMembers(): Promise<FoysMembersResponse> {
   const allMembers = [];
   let skip = 0;
@@ -241,12 +258,13 @@ interface UpsertUserParams {
   foysUserId: string | null;
   auth0Sub: string | null;
   refereeLevel: string | null;
+  memberSince: Date | null;
 }
 
-async function upsertUser(pool: Pool, { email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel }: UpsertUserParams): Promise<QueryResult> {
+async function upsertUser(pool: Pool, { email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel, memberSince }: UpsertUserParams): Promise<QueryResult> {
   const query = `
-    INSERT INTO users (id, email, first_name, last_name_prefix, last_name, nbb_number, foys_user_id, auth0_sub, referee_level, created_at, updated_at)
-    VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, now(), now())
+    INSERT INTO users (id, email, first_name, last_name_prefix, last_name, nbb_number, foys_user_id, auth0_sub, referee_level, member_since, created_at, updated_at)
+    VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
     ON CONFLICT (email) DO UPDATE SET
       first_name = EXCLUDED.first_name,
       last_name_prefix = EXCLUDED.last_name_prefix,
@@ -255,10 +273,11 @@ async function upsertUser(pool: Pool, { email, firstName, lastNamePrefix, lastNa
       foys_user_id = COALESCE(EXCLUDED.foys_user_id, users.foys_user_id),
       auth0_sub = COALESCE(EXCLUDED.auth0_sub, users.auth0_sub),
       referee_level = COALESCE(EXCLUDED.referee_level, users.referee_level),
+      member_since = COALESCE(EXCLUDED.member_since, users.member_since),
       updated_at = now()
     RETURNING id, (xmax = 0) AS inserted
   `;
-  return pool.query(query, [email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel]);
+  return pool.query(query, [email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel, memberSince]);
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -354,8 +373,18 @@ async function main(): Promise<void> {
       }
     }
 
+    let memberSince = null;
+    if (foysUserId) {
+      try {
+        const since = await fetchMemberSince(foysUserId);
+        memberSince = since ? new Date(since) : null;
+      } catch {
+        // Non-fatal — skip member-since fetch for this member
+      }
+    }
+
     if (dryRun) {
-      console.log(`Would upsert: ${member.fullName || email} (${email}) — nbb: ${nbbNumber}, auth0: ${auth0Sub ? "yes" : "no"}, referee: ${refereeLevel || "none"}`);
+      console.log(`Would upsert: ${member.fullName || email} (${email}) — nbb: ${nbbNumber}, auth0: ${auth0Sub ? "yes" : "no"}, referee: ${refereeLevel || "none"}, member since: ${memberSince ? memberSince.toISOString().slice(0, 10) : "unknown"}`);
       continue;
     }
 
@@ -369,6 +398,7 @@ async function main(): Promise<void> {
         foysUserId,
         auth0Sub,
         refereeLevel,
+        memberSince,
       });
       const inserted = result.rows[0]?.inserted;
       if (inserted) {

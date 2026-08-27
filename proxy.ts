@@ -35,21 +35,12 @@ export default async function proxy(request: NextRequest) {
 
   // Check if user is logged in and has the required role
   const session = await auth0.getSession(request);
-  console.log("[auth] Session exists:", !!session);
-  if (session) {
-    const user = session.user as Record<string, unknown>;
-    console.log("[auth] User sub:", user?.sub);
-    console.log("[auth] User email:", user?.email);
-  }
-
   if (session && !hasRequiredRole(session.user as Record<string, unknown>)) {
-    console.log("[auth] Redirecting to unauthorized");
     const locale =
       request.nextUrl.pathname.match(/^\/(en|nl)/)?.[1] ??
       routing.defaultLocale;
     return NextResponse.redirect(new URL(`/${locale}/unauthorized`, request.url));
   }
-  console.log("[auth] Role check passed, allowing request");
 
   const response = handleI18nRouting(request);
 

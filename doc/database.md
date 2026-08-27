@@ -21,6 +21,7 @@ Board members synced from FOYS + Auth0.
 | `nbbNumber` | text? | `nbb_number` | UNIQUE |
 | `foysUserId` | text? | `foys_user_id` | UNIQUE |
 | `refereeLevel` | text? | `referee_level` | |
+| `memberSince` | datetime | `member_since` | |
 | `createdAt` | datetime | `created_at` | DEFAULT now() |
 | `updatedAt` | datetime | `updated_at` | auto-updated |
 
