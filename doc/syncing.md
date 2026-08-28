@@ -16,8 +16,9 @@ Requires `FOYS_API_KEY`, `AUTH0_M2M_DOMAIN`, `AUTH0_M2M_CLIENT_ID`, and
 
 ## Teams
 
-The `sync:teams` script fetches all teams from FOYS and upserts them into the `competition_teams` table.
-Team names are mapped to TeamType enum values (e.g., "MSE-2" → `MSE2`, "3x3" → `V3x3`).
+The `sync:teams` script fetches all teams from FOYS and upserts them into the `teams` table.
+Team names are mapped to TeamType enum values (e.g.,  "VSE-5" / "D5" → `VSE5`,
+"MSE-2" / "H2" → `MSE2`, "3x3" → `V3x3`).
 
 ```bash
 npm run sync:teams          # dry run (default)
@@ -51,7 +52,7 @@ npm run sync:club-memberships -- --live     # write to the database
 
 ## Home matches
 
-The `sync:matches` script loops through the `competition_teams` table and fetches
+The `sync:matches` script loops through the `teams` table and fetches
 matches from the FOYS API for each team. Only US home games are synced (filtered by
 `homeOrganisation.id`). Supports filtering by season and/or team type.
 
@@ -64,7 +65,7 @@ npm run sync:matches -- --live --season 2025-2026 --team MSE1  # combined
 ```
 
 The `--season` flag filters which teams to query (by the `season` column on
-`competition_teams`). Each team entry in FOYS is tied to a specific season, so
+`teams`). Each team entry in FOYS is tied to a specific season, so
 the API returns matches for that season only.
 
 Requires `FOYS_API_KEY` in your `.env.local`.
@@ -76,8 +77,9 @@ the exact shape of the data can be inspected during local development:
 
 - `sync:users` writes `scripts/artifacts/users.json` (all members) and
   `scripts/artifacts/person-detail.sample.json` (a sample of raw person details).
-- `sync:teams` writes `scripts/artifacts/teams.json` (all teams).
-- `sync:matches` writes `scripts/artifacts/matches/<foysTeamId>.json` (raw
+- `sync:teams` writes `scripts/artifacts/teams.json` (all competition teams) and
+  `scripts/artifacts/teams-general.json` (the general non-competition teams).
+- `sync:matches` writes `scripts/artifacts/matches/<foysCompetitionTeamId>.json` (raw
   matches fetched per team).
 - `sync:club-memberships` writes `scripts/artifacts/club-memberships/<foysUserId>.json`
   (raw plan assignments for each synced user).

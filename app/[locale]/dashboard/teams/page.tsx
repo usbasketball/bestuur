@@ -14,8 +14,9 @@ export default async function TeamsPage({ params }: Props) {
 
   const t = await getTranslations("Dashboard.teams");
 
-  const teams = await db.orm.public.CompetitionTeam.select(
+  const teams = await db.orm.public.Team.select(
     "id",
+    "foysCompetitionTeamId",
     "foysTeamId",
     "name",
     "season",
@@ -43,7 +44,8 @@ export default async function TeamsPage({ params }: Props) {
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.name")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.season")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.discipline")}</th>
-              <th className="sticky top-0 bg-white pb-3 font-medium">{t("columns.foysId")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.foysCompetitionTeamId")}</th>
+              <th className="sticky top-0 bg-white pb-3 font-medium">{t("columns.foysTeamId")}</th>
             </tr>
           </thead>
           <tbody>
@@ -51,7 +53,7 @@ export default async function TeamsPage({ params }: Props) {
               <tr key={team.id} className="border-b border-line/50">
                 <td className="py-3 pr-4">
                   <a
-                    href={foysTeamUrl(team.foysTeamId)}
+                    href={foysTeamUrl(team.foysCompetitionTeamId)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex text-ink-muted transition-colors hover:text-accent"
@@ -64,8 +66,11 @@ export default async function TeamsPage({ params }: Props) {
                 <td className="py-3 pr-4 text-ink">{team.name ?? "—"}</td>
                 <td className="py-3 pr-4 text-ink-muted">{team.season}</td>
                 <td className="py-3 pr-4 text-ink-muted">{formatDiscipline(team.discipline)}</td>
+                <td className="py-3 pr-4 font-mono text-xs text-ink-muted">
+                  {team.foysCompetitionTeamId}
+                </td>
                 <td className="py-3 font-mono text-xs text-ink-muted">
-                  {team.foysTeamId}
+                  {team.foysTeamId ?? "—"}
                 </td>
               </tr>
             ))}

@@ -2,7 +2,7 @@
 
 // Sync home matches from FOYS competition API.
 //
-// 1. Queries competition_teams from the local database
+// 1. Queries teams from the local database
 // 2. For each team, fetches matches from the FOYS API
 // 3. Filters for US home games only (homeOrganisation.id matches)
 // 4. Upserts each match into the local PostgreSQL matches table
@@ -171,14 +171,14 @@ function saveArtifact(filename: string, data: unknown): void {
 
 interface DbTeam {
   id: string;
-  foys_team_id: number;
+  foys_competition_team_id: number;
   name: string | null;
   season: string;
   team_type: string;
 }
 
 async function queryTeams(pool: Pool): Promise<DbTeam[]> {
-  let query = "SELECT id, foys_team_id, name, season, team_type FROM competition_teams";
+  let query = "SELECT id, foys_competition_team_id, name, season, team_type FROM teams";
   const conditions: string[] = [];
   const params: string[] = [];
 
@@ -289,7 +289,7 @@ async function main(): Promise<void> {
 
     let matches: FoysMatch[];
     try {
-      matches = await fetchMatchesForTeam(team.foys_team_id);
+      matches = await fetchMatchesForTeam(team.foys_competition_team_id);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`  Error fetching matches for ${label}: ${message}`);
@@ -297,7 +297,7 @@ async function main(): Promise<void> {
       continue;
     }
 
-    saveArtifact(`${team.foys_team_id}.json`, matches);
+    saveArtifact(`${team.foys_competition_team_id}.json`, matches);
 
     const homeMatches = matches.filter(
       (m) => m.homeOrganisation?.id === US_ORGANISATION_ID
