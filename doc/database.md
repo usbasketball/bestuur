@@ -4,6 +4,8 @@ PostgreSQL database hosted on Neon, shared between the [bestuur](https://github.
 
 Schema is defined in `prisma/contract.prisma` using the Prisma 8 contract workflow.
 
+All timestamp columns use PostgreSQL `timestamp` without time zone (Prisma 8 `Timestamp` type). Application code assumes UTC; no timezone conversions are performed at the DB layer.
+
 ## Models
 
 ### User
