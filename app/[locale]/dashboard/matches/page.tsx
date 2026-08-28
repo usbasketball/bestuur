@@ -120,7 +120,7 @@ export default async function MatchesPage({ params, searchParams }: Props) {
                     </a>
                   </td>
                   <td className="py-3 pr-4 text-ink">
-                    {match.date.toISOString().slice(0, 10)}
+                    {match.date.toPlainDate().toString()}
                   </td>
                   <td className="py-3 pr-4 text-ink-muted">
                     {match.startTime?.slice(0, 5) ?? "—"}

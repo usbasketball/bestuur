@@ -33,8 +33,8 @@ export default async function MembersPage({ params }: Props) {
     .orderBy([(u) => u.lastName.asc(), (u) => u.firstName.asc()])
     .all();
 
-  const formatDate = (d: Date | null | undefined) =>
-    d ? d.toISOString().slice(0, 10) : null;
+  const formatDate = (d: Temporal.PlainDateTime | null | undefined) =>
+    d ? d.toPlainDate().toString() : null;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
