@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchAllFoysTeams,
   fetchAllFoysGeneralTeams,
-  mapTrainingTeamType,
+  mapGeneralTeamType,
   upsertTeam,
   upsertGeneralTeamId,
 } from "../scripts/sync-teams";
@@ -17,31 +17,31 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("mapTrainingTeamType", () => {
+describe("mapGeneralTeamType", () => {
   it("maps D{number} to VSE{number}", () => {
-    expect(mapTrainingTeamType("D1")).toBe("VSE1");
-    expect(mapTrainingTeamType("D6")).toBe("VSE6");
+    expect(mapGeneralTeamType("D1")).toBe("VSE1");
+    expect(mapGeneralTeamType("D6")).toBe("VSE6");
   });
 
   it("maps H{number} to MSE{number}", () => {
-    expect(mapTrainingTeamType("H1")).toBe("MSE1");
-    expect(mapTrainingTeamType("H5")).toBe("MSE5");
+    expect(mapGeneralTeamType("H1")).toBe("MSE1");
+    expect(mapGeneralTeamType("H5")).toBe("MSE5");
   });
 
   it("trims surrounding whitespace", () => {
-    expect(mapTrainingTeamType("  H2  ")).toBe("MSE2");
+    expect(mapGeneralTeamType("  H2  ")).toBe("MSE2");
   });
 
   it("returns null for non-training-team names", () => {
-    expect(mapTrainingTeamType("Vrijtrainen")).toBeNull();
-    expect(mapTrainingTeamType("MSE-1")).toBeNull();
-    expect(mapTrainingTeamType("")).toBeNull();
-    expect(mapTrainingTeamType(null)).toBeNull();
+    expect(mapGeneralTeamType("Vrijtrainen")).toBeNull();
+    expect(mapGeneralTeamType("MSE-1")).toBeNull();
+    expect(mapGeneralTeamType("")).toBeNull();
+    expect(mapGeneralTeamType(null)).toBeNull();
   });
 
   it("returns null for unsupported team numbers or prefixes", () => {
-    expect(mapTrainingTeamType("D7")).toBeNull();
-    expect(mapTrainingTeamType("X1")).toBeNull();
+    expect(mapGeneralTeamType("D7")).toBeNull();
+    expect(mapGeneralTeamType("X1")).toBeNull();
   });
 });
 

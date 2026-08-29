@@ -21,6 +21,7 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import dotenv from "dotenv";
 import { Pool } from "pg";
+import "temporal-polyfill/full/global";
 import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "../prisma/contract.d";
 import contractJson from "../prisma/contract.json";
@@ -164,11 +165,12 @@ export async function fetchAllFoysGeneralTeams(): Promise<FoysGeneralTeamsRespon
   return { totalCount, items: allTeams };
 }
 
-// Map a non-competition team name to a TeamType. Training teams use Dutch
+// Map a non-competition team name to a TeamType. General teams use Dutch
 // prefixes: "D1" (Dames, women) → VSE1, "H1" (Heren, men) → MSE1. Teams without
 // a usable team type (e.g. "Vrijtrainen") return null and are skipped.
-export function mapTrainingTeamType(name: string | null | undefined): TeamType | null {
+export function mapGeneralTeamType(name: string | null | undefined): TeamType | null {
   if (!name) return null;
+  if (name == "3x3") return "V3x3";
   const m = /^([DH])(\d+)$/.exec(name.trim());
   if (!m) return null;
   const prefix = m[1];
@@ -300,7 +302,7 @@ async function main(): Promise<void> {
 
   for (const team of general.items) {
     const season = team.season?.name || null;
-    const teamType = mapTrainingTeamType(team.name);
+    const teamType = mapGeneralTeamType(team.name);
     const sanitizedName = (team.name || "?").trim();
 
     if (!season) {
