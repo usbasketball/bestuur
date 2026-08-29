@@ -35,6 +35,16 @@ export default async function MembersPage({ params }: Props) {
     .orderBy([(u) => u.lastName.asc(), (u) => u.firstName.asc()])
     .all();
 
+  // Sort users by primary team name, with users without a primary team at the end.
+  const sortedUsers = users.sort((a, b) => {
+    const teamA = a.memberships[0]?.primaryTeam;
+    const teamB = b.memberships[0]?.primaryTeam;
+    if (teamA && teamB) return teamA.localeCompare(teamB);
+    if (teamA) return -1;
+    if (teamB) return 1;
+    return 0
+  });
+
   const formatDate = (d: Temporal.PlainDateTime | null | undefined) =>
     d ? d.toPlainDate().toString() : null;
 
@@ -62,7 +72,7 @@ export default async function MembersPage({ params }: Props) {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => {
+            {sortedUsers.map((user) => {
               const membership = user.memberships[0];
               const membershipType = membership?.membershipType ?? null;
               const primaryTeam = membership?.primaryTeam ?? null;
