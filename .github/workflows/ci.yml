@@ -25,6 +25,12 @@ jobs:
       - name: Generate Prisma contract artifacts
         run: npm run contract:emit
 
+      # LayoutProps etc. live in .next/types, which is gitignored and normally
+      # produced by `next dev`/`next build`. Generate them so `tsc` passes on a
+      # fresh clone without a full build.
+      - name: Generate route types
+        run: npx next typegen
+
       - name: Typecheck
         run: npm run typecheck
 
