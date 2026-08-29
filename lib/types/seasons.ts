@@ -10,3 +10,5 @@ export const SEASONS = [
   "2018-2019",
   "2017-2018",
 ];
+
+export type Season = (typeof SEASONS)[number];

@@ -6,5 +6,5 @@ export { MATCH_STATUSES, mapMatchStatus, type MatchStatus } from "./match-status
 export { CLUB_MEMBERSHIP_TYPES, mapClubMembershipType, mapPlanMembershipType, type ClubMembershipType } from "./club-membership-type";
 export { COMMITTEE_TYPES, type CommitteeType } from "./committee-type";
 export { FOYS_CLUB_ID, FOYS_BASE_URL, foysMemberUrl, foysTeamUrl, foysMatchUrl } from "./foys";
-export { SEASONS } from "./seasons";
+export { SEASONS, type Season } from "./seasons";
 export { toPlainDateTime } from "./datetime";

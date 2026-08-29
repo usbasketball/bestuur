@@ -76,12 +76,24 @@
     "activeMembers": {
       "title": "Actieve leden",
       "count": "{count, plural, =0 {Geen actieve leden} one {# actief lid} other {# actieve leden}}",
+      "empty": "Nog geen actieve leden.",
+      "filter": {
+        "label": "Seizoen"
+      },
       "columns": {
-        "team": "Team",
-        "name": "Naam",
-        "email": "E-mail",
         "nbb": "NBB nr.",
-        "season": "Seizoen"
+        "name": "Naam",
+        "type": "Type",
+        "team": "Team"
+      },
+      "types": {
+        "COACH": "Coach",
+        "BOARD_CHAIRPERSON": "Bestuur - Voorzitter",
+        "BOARD_SECRETARY": "Bestuur - Secretaris",
+        "BOARD_TREASURER": "Bestuur - Penningmeester",
+        "BOARD_GAME_SECRETARY": "Bestuur - Wedstrijdsecretaris",
+        "BOARD_GENERAL_MEMBER": "Bestuur - Algemeen lid",
+        "OMNI": "OMNI"
       }
     },
     "matches": {

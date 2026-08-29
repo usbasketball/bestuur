@@ -76,12 +76,24 @@
     "activeMembers": {
       "title": "Active Members",
       "count": "{count, plural, =0 {No active members} one {# active member} other {# active members}}",
+      "empty": "No active members yet.",
+      "filter": {
+        "label": "Season"
+      },
       "columns": {
-        "team": "Team",
-        "name": "Name",
-        "email": "Email",
         "nbb": "NBB #",
-        "season": "Season"
+        "name": "Name",
+        "type": "Type",
+        "team": "Team"
+      },
+      "types": {
+        "COACH": "Coach",
+        "BOARD_CHAIRPERSON": "Board - Chairperson",
+        "BOARD_SECRETARY": "Board - Secretary",
+        "BOARD_TREASURER": "Board - Treasurer",
+        "BOARD_GAME_SECRETARY": "Board - Game secretary",
+        "BOARD_GENERAL_MEMBER": "Board - General member",
+        "OMNI": "OMNI"
       }
     },
     "matches": {
