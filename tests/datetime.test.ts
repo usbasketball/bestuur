@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toPlainDateTime } from "../lib/types";
+import { toPlainDateTime, toPlainDateTimeFromIso } from "../lib/types";
 
 describe("toPlainDateTime", () => {
   it("maps a Date's UTC components to a PlainDateTime", () => {
@@ -18,5 +18,21 @@ describe("toPlainDateTime", () => {
     const date = new Date("2025-03-01T00:00:00Z");
     const pdt = toPlainDateTime(date);
     expect(pdt.toString()).toBe("2025-03-01T00:00:00");
+  });
+});
+
+describe("toPlainDateTimeFromIso", () => {
+  it("parses FOYS UTC timestamps with a trailing Z", () => {
+    const pdt = toPlainDateTimeFromIso("2026-09-13T00:00:00Z");
+    expect(pdt.toString()).toBe("2026-09-13T00:00:00");
+  });
+
+  it("parses strings with explicit offsets as UTC wall time", () => {
+    const pdt = toPlainDateTimeFromIso("2026-09-13T02:30:00+02:00");
+    expect(pdt.toString()).toBe("2026-09-13T00:30:00");
+  });
+
+  it("parses plain strings without a timezone", () => {
+    expect(toPlainDateTimeFromIso("2025-09-14T19:45").toString()).toBe("2025-09-14T19:45:00");
   });
 });

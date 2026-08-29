@@ -7,4 +7,4 @@ export { CLUB_MEMBERSHIP_TYPES, mapClubMembershipType, mapPlanMembershipType, ty
 export { COMMITTEE_TYPES, type CommitteeType } from "./committee-type";
 export { FOYS_CLUB_ID, FOYS_BASE_URL, foysMemberUrl, foysTeamUrl, foysMatchUrl } from "./foys";
 export { SEASONS, type Season } from "./seasons";
-export { toPlainDateTime } from "./datetime";
+export { toPlainDateTime, toPlainDateTimeFromIso } from "./datetime";

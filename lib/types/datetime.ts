@@ -12,3 +12,14 @@ export function toPlainDateTime(d: Date): Temporal.PlainDateTime {
     d.getUTCMilliseconds(),
   );
 }
+
+// Parse an ISO date-time string into the wall-clock PlainDateTime in UTC that
+// the ORM expects for `timestamp` columns. FOYS returns UTC timestamps with a
+// "Z" suffix (e.g. "2026-09-13T00:00:00Z"), which Temporal.PlainDateTime
+// rejects, so strings carrying a timezone/offset go through Instant first.
+export function toPlainDateTimeFromIso(iso: string): Temporal.PlainDateTime {
+  if (/[zZ]$|[+-]\d{2}:\d{2}$/.test(iso)) {
+    return Temporal.Instant.from(iso).toZonedDateTimeISO("UTC").toPlainDateTime();
+  }
+  return Temporal.PlainDateTime.from(iso);
+}
