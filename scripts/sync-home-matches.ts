@@ -28,6 +28,7 @@ import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "../prisma/contract.d";
 import contractJson from "../prisma/contract.json";
 import { mapFieldType, mapMatchStatus } from "../lib/types";
+import { isMainModule } from "../lib/is-main";
 
 const dryRun = !process.argv.includes("--live");
 const args = process.argv.slice(2);
@@ -45,14 +46,16 @@ dotenv.config({ path: path.join(rootDir, ".env") });
 const DATABASE_URL = process.env.DATABASE_URL;
 const FOYS_API_KEY = process.env.FOYS_API_KEY;
 
-if (!DATABASE_URL) {
-  console.error("Missing DATABASE_URL env var.");
-  process.exit(1);
-}
+function validateEnv(): void {
+  if (!DATABASE_URL) {
+    console.error("Missing DATABASE_URL env var.");
+    process.exit(1);
+  }
 
-if (!FOYS_API_KEY) {
-  console.error("Missing FOYS_API_KEY env var.");
-  process.exit(1);
+  if (!FOYS_API_KEY) {
+    console.error("Missing FOYS_API_KEY env var.");
+    process.exit(1);
+  }
 }
 
 const US_ORGANISATION_ID = "2f1e5e8e-e2c5-4d8b-9d21-1584bc6c8d5a";
@@ -125,7 +128,7 @@ interface FoysMatchesResponse {
   items: FoysMatch[];
 }
 
-async function fetchMatchesForTeam(teamId: number): Promise<FoysMatch[]> {
+export async function fetchMatchesForTeam(teamId: number): Promise<FoysMatch[]> {
   const allMatches: FoysMatch[] = [];
   let skip = 0;
   let totalCount = Infinity;
@@ -182,8 +185,17 @@ interface DbTeam {
   teamType: string;
 }
 
-async function queryTeams(db: Db): Promise<DbTeam[]> {
+export async function queryTeams(
+  db: Db,
+  filter: { season?: string; teamType?: string } = {},
+): Promise<DbTeam[]> {
+  const filterSeason = filter.season;
+  const filterTeam = filter.teamType ? filter.teamType.toUpperCase() : undefined;
   const results: DbTeam[] = [];
+
+  const push = (t: { foysCompetitionTeamId: number; name: string | null; season: string; teamType: string }): void => {
+    results.push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: t.teamType });
+  };
 
   if (filterSeason && filterTeam) {
     const rows = await db.orm.public.Team
@@ -191,9 +203,7 @@ async function queryTeams(db: Db): Promise<DbTeam[]> {
       .where({ season: filterSeason })
       .all();
     for (const t of rows) {
-      if (String(t.teamType) === filterTeam.toUpperCase()) {
-        results.push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
-      }
+      if (String(t.teamType) === filterTeam) push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
     }
     return results;
   }
@@ -203,7 +213,7 @@ async function queryTeams(db: Db): Promise<DbTeam[]> {
       .where({ season: filterSeason })
       .all();
     for (const t of rows) {
-      results.push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
+      push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
     }
     return results;
   }
@@ -212,9 +222,7 @@ async function queryTeams(db: Db): Promise<DbTeam[]> {
       .select("foysCompetitionTeamId", "name", "season", "teamType")
       .all();
     for (const t of rows) {
-      if (String(t.teamType) === filterTeam.toUpperCase()) {
-        results.push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
-      }
+      if (String(t.teamType) === filterTeam) push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
     }
     return results;
   }
@@ -222,7 +230,7 @@ async function queryTeams(db: Db): Promise<DbTeam[]> {
     .select("foysCompetitionTeamId", "name", "season", "teamType")
     .all();
   for (const t of rows) {
-    results.push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
+    push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
   }
   return results;
 }
@@ -245,7 +253,7 @@ interface UpsertMatchParams {
   field: string | null;
 }
 
-async function upsertMatch(db: Db, p: UpsertMatchParams): Promise<void> {
+export async function upsertMatch(db: Db, p: UpsertMatchParams): Promise<void> {
   await db.orm.public.Match.upsert({
     create: {
       foysMatchId: p.foysMatchId,
@@ -282,6 +290,8 @@ async function upsertMatch(db: Db, p: UpsertMatchParams): Promise<void> {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  validateEnv();
+
   if (dryRun) {
     console.log("=== DRY RUN (no database writes) ===\n");
   }
@@ -292,7 +302,7 @@ async function main(): Promise<void> {
   // 1. Query teams from database
   const pool = new Pool({ connectionString: DATABASE_URL });
   const db = postgres<Contract>({ contractJson, pg: pool });
-  const teams = await queryTeams(db);
+  const teams = await queryTeams(db, { season: filterSeason, teamType: filterTeam });
   console.log(`Found ${teams.length} teams in database.\n`);
 
   if (teams.length === 0) {
@@ -373,4 +383,6 @@ async function main(): Promise<void> {
   );
 }
 
-main();
+if (isMainModule(import.meta.url)) {
+  void main();
+}

@@ -25,6 +25,7 @@ import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "../prisma/contract.d";
 import contractJson from "../prisma/contract.json";
 import { mapTeamType, TEAM_TYPES, TeamType, Discipline } from "../lib/types";
+import { isMainModule } from "../lib/is-main";
 
 const dryRun = !process.argv.includes("--live");
 
@@ -35,14 +36,16 @@ dotenv.config({ path: path.join(rootDir, ".env") });
 const DATABASE_URL = process.env.DATABASE_URL;
 const FOYS_API_KEY = process.env.FOYS_API_KEY;
 
-if (!DATABASE_URL) {
-  console.error("Missing DATABASE_URL env var.");
-  process.exit(1);
-}
+function validateEnv(): void {
+  if (!DATABASE_URL) {
+    console.error("Missing DATABASE_URL env var.");
+    process.exit(1);
+  }
 
-if (!FOYS_API_KEY) {
-  console.error("Missing FOYS_API_KEY env var.");
-  process.exit(1);
+  if (!FOYS_API_KEY) {
+    console.error("Missing FOYS_API_KEY env var.");
+    process.exit(1);
+  }
 }
 
 // ── FOYS API ──────────────────────────────────────────────────────────────────
@@ -73,7 +76,7 @@ interface FoysCompetitionTeamsResponse {
   items: FoysCompetitionTeam[];
 }
 
-async function fetchAllFoysTeams(): Promise<FoysCompetitionTeamsResponse> {
+export async function fetchAllFoysTeams(): Promise<FoysCompetitionTeamsResponse> {
   const allTeams = [];
   let skip = 0;
   let totalCount = Infinity;
@@ -125,7 +128,7 @@ interface FoysGeneralTeamsResponse {
   items: FoysGeneralTeam[];
 }
 
-async function fetchAllFoysGeneralTeams(): Promise<FoysGeneralTeamsResponse> {
+export async function fetchAllFoysGeneralTeams(): Promise<FoysGeneralTeamsResponse> {
   const allTeams = [];
   let skip = 0;
   let totalCount = Infinity;
@@ -164,7 +167,7 @@ async function fetchAllFoysGeneralTeams(): Promise<FoysGeneralTeamsResponse> {
 // Map a non-competition team name to a TeamType. Training teams use Dutch
 // prefixes: "D1" (Dames, women) → VSE1, "H1" (Heren, men) → MSE1. Teams without
 // a usable team type (e.g. "Vrijtrainen") return null and are skipped.
-function mapTrainingTeamType(name: string | null | undefined): TeamType | null {
+export function mapTrainingTeamType(name: string | null | undefined): TeamType | null {
   if (!name) return null;
   const m = /^([DH])(\d+)$/.exec(name.trim());
   if (!m) return null;
@@ -196,7 +199,7 @@ interface UpsertTeamParams {
   discipline: Discipline;
 }
 
-async function upsertTeam(db: ReturnType<typeof postgres<Contract>>, { foysCompetitionTeamId, name, season, teamType, discipline }: UpsertTeamParams): Promise<void> {
+export async function upsertTeam(db: ReturnType<typeof postgres<Contract>>, { foysCompetitionTeamId, name, season, teamType, discipline }: UpsertTeamParams): Promise<void> {
   await db.orm.public.Team.upsert({
     create: { foysCompetitionTeamId, name, season, teamType, discipline },
     update: { name, season, teamType, discipline },
@@ -208,7 +211,7 @@ async function upsertTeam(db: ReturnType<typeof postgres<Contract>>, { foysCompe
 // matched by (team_type, season). Rows are only created by the competition
 // sync above, so a missing row returns false and is skipped rather than
 // inserted without a foys_competition_team_id.
-async function upsertGeneralTeamId(db: ReturnType<typeof postgres<Contract>>, p: { foysTeamId: number; season: string; teamType: TeamType; name: string | null }): Promise<boolean> {
+export async function upsertGeneralTeamId(db: ReturnType<typeof postgres<Contract>>, p: { foysTeamId: number; season: string; teamType: TeamType; name: string | null }): Promise<boolean> {
   const existing = await db.orm.public.Team
     .where({ teamType: p.teamType, season: p.season })
     .first();
@@ -223,6 +226,8 @@ async function upsertGeneralTeamId(db: ReturnType<typeof postgres<Contract>>, p:
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  validateEnv();
+
   if (dryRun) {
     console.log("=== DRY RUN (no database writes) ===\n");
   }
@@ -341,4 +346,6 @@ async function main(): Promise<void> {
   console.log(`General teams synced: ${generalTotal}`);
 }
 
-main();
+if (isMainModule(import.meta.url)) {
+  void main();
+}

@@ -29,7 +29,8 @@ import "temporal-polyfill/full/global";
 import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "../prisma/contract.d";
 import contractJson from "../prisma/contract.json";
-import { mapPlanMembershipType, ClubMembershipType, TeamType } from "../lib/types";
+import { mapPlanMembershipType, toPlainDateTime, ClubMembershipType, TeamType } from "../lib/types";
+import { isMainModule } from "../lib/is-main";
 
 const dryRun = !process.argv.includes("--live");
 
@@ -40,14 +41,16 @@ dotenv.config({ path: path.join(rootDir, ".env") });
 const DATABASE_URL = process.env.DATABASE_URL;
 const FOYS_API_KEY = process.env.FOYS_API_KEY;
 
-if (!DATABASE_URL) {
-  console.error("Missing DATABASE_URL env var.");
-  process.exit(1);
-}
+function validateEnv(): void {
+  if (!DATABASE_URL) {
+    console.error("Missing DATABASE_URL env var.");
+    process.exit(1);
+  }
 
-if (!FOYS_API_KEY) {
-  console.error("Missing FOYS_API_KEY env var.");
-  process.exit(1);
+  if (!FOYS_API_KEY) {
+    console.error("Missing FOYS_API_KEY env var.");
+    process.exit(1);
+  }
 }
 
 // ── FOYS API ──────────────────────────────────────────────────────────────────
@@ -68,7 +71,7 @@ interface FoysPlanAssignment {
   [key: string]: unknown;
 }
 
-async function fetchPlanAssignments(foysUserId: string): Promise<FoysPlanAssignment[]> {
+export async function fetchPlanAssignments(foysUserId: string): Promise<FoysPlanAssignment[]> {
   const res = await fetch(`${FOYS_PLAN_ASSIGNMENTS_API}/${foysUserId}`, {
     headers: {
       Accept: "application/json",
@@ -89,7 +92,7 @@ async function fetchPlanAssignments(foysUserId: string): Promise<FoysPlanAssignm
 // belong to the 2025-2026 season, 2027-07-31 belongs to 2026-2027). Using the
 // end date as the anchor handles mid-season joins where the start date is in a
 // different year. Returns null when the end date is unusable.
-function seasonFromEndDate(endDate: string | null | undefined): string | null {
+export function seasonFromEndDate(endDate: string | null | undefined): string | null {
   if (!endDate || !/^\d{4}-\d{2}/.test(endDate)) return null;
   const year = Number(endDate.slice(0, 4));
   const month = Number(endDate.slice(5, 7));
@@ -113,25 +116,13 @@ function saveArtifact(filename: string, data: unknown): void {
 
 type Db = ReturnType<typeof postgres<Contract>>;
 
-function toPlainDateTime(d: Date): Temporal.PlainDateTime {
-  return new Temporal.PlainDateTime(
-    d.getUTCFullYear(),
-    d.getUTCMonth() + 1,
-    d.getUTCDate(),
-    d.getUTCHours(),
-    d.getUTCMinutes(),
-    d.getUTCSeconds(),
-    d.getUTCMilliseconds() * 1_000_000,
-  );
-}
-
 interface DbUser {
   id: string;
   foys_user_id: string | null;
   email: string | null;
 }
 
-async function queryUsers(db: Db): Promise<DbUser[]> {
+export async function queryUsers(db: Db): Promise<DbUser[]> {
   const rows = await db.orm.public.User.select("id", "foysUserId", "email")
     .where((u) => u.foysUserId.isNotNull())
     .all();
@@ -151,7 +142,7 @@ interface UpsertClubMembershipParams {
   cancelledAt: Temporal.PlainDateTime | null;
 }
 
-async function upsertClubMembership(db: Db, p: UpsertClubMembershipParams): Promise<void> {
+export async function upsertClubMembership(db: Db, p: UpsertClubMembershipParams): Promise<void> {
   const update: Record<string, unknown> = {};
   if (p.primaryTeam != null) update.primaryTeam = p.primaryTeam;
   if (p.registeredTeam != null) update.registeredTeam = p.registeredTeam;
@@ -172,9 +163,31 @@ async function upsertClubMembership(db: Db, p: UpsertClubMembershipParams): Prom
   });
 }
 
+// ── Plan selection ────────────────────────────────────────────────────────────
+
+// Choose the single representative plan for a (user, season): prefer a
+// COMPETITION plan, then RECREATIONAL, then fall back to the first plan.
+// Returns the chosen plan plus its mapped membership type (null when unknown).
+export function choosePlan(
+  plans: FoysPlanAssignment[],
+): { plan: FoysPlanAssignment; type: ClubMembershipType | null } {
+  const scored = plans.map((p) => {
+    const planName = p.plan?.name ?? p.planName;
+    const isMatchLicense = p.plan?.isMatchLicense ?? null;
+    return { plan: p, type: mapPlanMembershipType(planName, isMatchLicense) };
+  });
+  return (
+    scored.find((s) => s.type === "COMPETITION") ??
+    scored.find((s) => s.type === "RECREATIONAL") ??
+    scored[0]
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  validateEnv();
+
   if (dryRun) {
     console.log("=== DRY RUN (no database writes) ===\n");
   }
@@ -247,19 +260,11 @@ async function main(): Promise<void> {
   // "Recreanten" to "Wedstrijdspelend" within the same season).
   for (const [key, plans] of perSeasonPlans) {
     const { user, season } = plans[0];
-    const scored = plans.map((p) => {
-      const planName = p.plan.plan?.name ?? p.plan.planName;
-      const isMatchLicense = p.plan.plan?.isMatchLicense ?? null;
-      return { plan: p, type: mapPlanMembershipType(planName, isMatchLicense) };
-    });
-    const competition =
-      scored.find((s) => s.type === "COMPETITION") ??
-      scored.find((s) => s.type === "RECREATIONAL") ??
-      scored[0];
+    const competition = choosePlan(plans.map((p) => p.plan));
     const chosen = competition.plan;
     const membershipType = competition.type;
-    const cancelledAt = chosen.plan.cancellationDate
-      ? new Date(chosen.plan.cancellationDate)
+    const cancelledAt = chosen.cancellationDate
+      ? new Date(chosen.cancellationDate)
       : null;
 
     if (!membershipType) {
@@ -298,4 +303,6 @@ async function main(): Promise<void> {
   );
 }
 
-main();
+if (isMainModule(import.meta.url)) {
+  void main();
+}

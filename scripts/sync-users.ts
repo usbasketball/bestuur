@@ -26,7 +26,8 @@ import "temporal-polyfill/full/global";
 import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "../prisma/contract.d";
 import contractJson from "../prisma/contract.json";
-import { REFEREE_LEVELS, TAG_CODE_TO_LEVEL } from "../lib/types";
+import { REFEREE_LEVELS, TAG_CODE_TO_LEVEL, toPlainDateTime } from "../lib/types";
+import { isMainModule } from "../lib/is-main";
 
 const dryRun = !process.argv.includes("--live");
 
@@ -40,19 +41,21 @@ const AUTH0_M2M_CLIENT_ID = process.env.AUTH0_M2M_CLIENT_ID;
 const AUTH0_M2M_CLIENT_SECRET = process.env.AUTH0_M2M_CLIENT_SECRET;
 const FOYS_API_KEY = process.env.FOYS_API_KEY;
 
-if (!DATABASE_URL) {
-  console.error("Missing DATABASE_URL env var.");
-  process.exit(1);
-}
+function validateEnv(): void {
+  if (!DATABASE_URL) {
+    console.error("Missing DATABASE_URL env var.");
+    process.exit(1);
+  }
 
-if (!AUTH0_M2M_DOMAIN || !AUTH0_M2M_CLIENT_ID || !AUTH0_M2M_CLIENT_SECRET) {
-  console.error("Missing AUTH0_M2M_DOMAIN, AUTH0_M2M_CLIENT_ID, or AUTH0_M2M_CLIENT_SECRET env vars.");
-  process.exit(1);
-}
+  if (!AUTH0_M2M_DOMAIN || !AUTH0_M2M_CLIENT_ID || !AUTH0_M2M_CLIENT_SECRET) {
+    console.error("Missing AUTH0_M2M_DOMAIN, AUTH0_M2M_CLIENT_ID, or AUTH0_M2M_CLIENT_SECRET env vars.");
+    process.exit(1);
+  }
 
-if (!FOYS_API_KEY) {
-  console.error("Missing FOYS_API_KEY env var.");
-  process.exit(1);
+  if (!FOYS_API_KEY) {
+    console.error("Missing FOYS_API_KEY env var.");
+    process.exit(1);
+  }
 }
 
 // ── FOYS API ──────────────────────────────────────────────────────────────────
@@ -81,7 +84,7 @@ interface FoysMemberDetail {
   memberSince: string | null;
 }
 
-async function fetchMemberDetail(guid: string): Promise<FoysMemberDetail | null> {
+export async function fetchMemberDetail(guid: string): Promise<FoysMemberDetail | null> {
   const res = await fetch(`${FOYS_API}/${guid}`, {
     headers: {
       Accept: "application/json",
@@ -93,7 +96,7 @@ async function fetchMemberDetail(guid: string): Promise<FoysMemberDetail | null>
   return (await res.json()) as FoysMemberDetail;
 }
 
-async function fetchAllFoysMembers(): Promise<FoysMembersResponse> {
+export async function fetchAllFoysMembers(): Promise<FoysMembersResponse> {
   const allMembers = [];
   let skip = 0;
   let totalCount = Infinity;
@@ -132,7 +135,7 @@ async function fetchAllFoysMembers(): Promise<FoysMembersResponse> {
   return { totalCount, items: allMembers };
 }
 
-async function fetchRefereeLevel(nbbNumber: string): Promise<string | null> {
+export async function fetchRefereeLevel(nbbNumber: string): Promise<string | null> {
   const url = `${FOYS_TAGS_API}/${nbbNumber}/tag-type/3?federationMembershipIdentifier=${nbbNumber}&activeOnly=true&tagType=3`;
   const res = await fetch(url, {
     headers: {
@@ -169,7 +172,7 @@ interface Auth0TokenResponse {
   access_token: string;
 }
 
-async function getToken(): Promise<string> {
+export async function getToken(): Promise<string> {
   const res = await fetch(`https://${AUTH0_M2M_DOMAIN}/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -192,7 +195,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function mgmtFetch(apiPath: string, options: RequestInit = {}, retries = 3): Promise<unknown> {
+export async function mgmtFetch(apiPath: string, options: RequestInit = {}, retries = 3): Promise<unknown> {
   if (!accessToken) accessToken = await getToken();
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -231,7 +234,7 @@ interface Auth0UsersResponse {
   users: Auth0User[];
 }
 
-async function fetchAllAuth0Users(): Promise<Auth0User[]> {
+export async function fetchAllAuth0Users(): Promise<Auth0User[]> {
   const allUsers: Auth0User[] = [];
   let page = 0;
   const perPage = 100;
@@ -268,21 +271,6 @@ function saveArtifact(filename: string, data: unknown): void {
 
 // ── Database ──────────────────────────────────────────────────────────────────
 
-// Convert a JS Date to the Sustained/temporal PlainDateTime the ORM expects for
-// `timestamp` columns. Timestamps are stored as UTC (no timezone), so we map
-// from the Date's UTC components.
-function toPlainDateTime(d: Date): Temporal.PlainDateTime {
-  return new Temporal.PlainDateTime(
-    d.getUTCFullYear(),
-    d.getUTCMonth() + 1,
-    d.getUTCDate(),
-    d.getUTCHours(),
-    d.getUTCMinutes(),
-    d.getUTCSeconds(),
-    d.getUTCMilliseconds() * 1_000_000,
-  );
-}
-
 interface UpsertUserParams {
   email: string;
   firstName: string | null;
@@ -297,7 +285,7 @@ interface UpsertUserParams {
 
 type UserDb = ReturnType<typeof postgres<Contract>>;
 
-async function upsertUser(db: UserDb, { email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel, memberSince }: UpsertUserParams): Promise<void> {
+export async function upsertUser(db: UserDb, { email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel, memberSince }: UpsertUserParams): Promise<void> {
   // The raw SQL version only overwrote a value when the incoming value was
   // non-null (COALESCE(EXCLUDED.x, users.x)); preserve that by only writing
   // non-null fields on update.
@@ -341,7 +329,7 @@ interface SplitNameResult {
   lastName: string | null;
 }
 
-function splitName(member: FoysMember): SplitNameResult {
+export function splitName(member: FoysMember): SplitNameResult {
   const fullName = (member.fullName || "").trim();
   if (!fullName) return { firstName: null, lastNamePrefix: null, lastName: null };
 
@@ -365,6 +353,8 @@ function splitName(member: FoysMember): SplitNameResult {
 }
 
 async function main(): Promise<void> {
+  validateEnv();
+
   if (dryRun) {
     console.log("=== DRY RUN (no database writes) ===\n");
   }
@@ -476,4 +466,6 @@ async function main(): Promise<void> {
   );
 }
 
-main();
+if (isMainModule(import.meta.url)) {
+  void main();
+}
