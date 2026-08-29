@@ -45,11 +45,16 @@
         "email": "E-mail",
         "nbb": "NBB nr.",
         "refereeLevel": "Scheidsrechtersniveau",
-        "memberSince": "Lid sinds"
+        "memberSince": "Lid sinds",
+        "primaryTeam": "Team"
       },
       "membershipTypes": {
         "COMPETITION": "Competitie",
         "RECREATIONAL": "Recreatief"
+      },
+      "filter": {
+        "label": "Teamtype",
+        "all": "Alle teams"
       },
       "openInFoys": "Openen in FOYS"
     },

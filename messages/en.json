@@ -45,11 +45,16 @@
         "email": "Email",
         "nbb": "NBB #",
         "refereeLevel": "Referee level",
-        "memberSince": "Member since"
+        "memberSince": "Member since",
+        "primaryTeam": "Primary team"
       },
       "membershipTypes": {
         "COMPETITION": "Competition",
         "RECREATIONAL": "Recreational"
+      },
+      "filter": {
+        "label": "Team type",
+        "all": "All teams"
       },
       "openInFoys": "Open in FOYS"
     },

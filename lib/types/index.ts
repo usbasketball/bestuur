@@ -5,4 +5,5 @@ export { FIELD_TYPES, mapFieldType, formatFieldType, type FieldType } from "./fi
 export { MATCH_STATUSES, mapMatchStatus, type MatchStatus } from "./match-status";
 export { CLUB_MEMBERSHIP_TYPES, mapClubMembershipType, mapPlanMembershipType, type ClubMembershipType } from "./club-membership-type";
 export { FOYS_CLUB_ID, FOYS_BASE_URL, foysMemberUrl, foysTeamUrl, foysMatchUrl } from "./foys";
+export { SEASONS } from "./seasons";
 export { toPlainDateTime } from "./datetime";

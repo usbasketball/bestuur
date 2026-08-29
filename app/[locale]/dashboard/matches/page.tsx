@@ -3,21 +3,8 @@ import { getTranslations } from "next-intl/server";
 import { ExternalLink } from "lucide-react";
 import { db } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { formatFieldType, foysMatchUrl } from "@/lib/types";
+import { formatFieldType, foysMatchUrl, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-
-const SEASONS = [
-  "2026-2027",
-  "2025-2026",
-  "2024-2025",
-  "2023-2024",
-  "2022-2023",
-  "2021-2022",
-  "2020-2021",
-  "2019-2020",
-  "2018-2019",
-  "2017-2018",
-];
 
 type Props = {
   params: Promise<{ locale: string }>;

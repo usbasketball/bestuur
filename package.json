@@ -18,6 +18,7 @@
     "sync:teams": "tsx scripts/sync-teams.ts",
     "sync:matches": "tsx scripts/sync-home-matches.ts",
     "sync:club-memberships": "tsx scripts/sync-club-memberships.ts",
+    "backfill:team-members": "tsx scripts/backfill-team-members.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
