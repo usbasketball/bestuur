@@ -46,10 +46,11 @@ Membership type is derived from the plan name via `mapPlanMembershipType()` in
 team's active members via
 `GET /foys/api/v1/management/teams/{teamId}/members?activeMembers=true`
 (teams discovered from the local `teams` table where `foys_team_id` is set, so the
-stored team type maps the team's FOYS id to a `TeamType`). Each member's
-`primary_team` is keyed by (user, season); when a member appears in multiple
-teams in the same season, the first team in `TEAM_TYPES` order (VSE1…VSE6, then
-MSE1…MSE6, then V3x3) wins. A team member with no matching
+stored team type maps the team's FOYS id to a `TeamType`). Each member's `primary_team`
+is keyed by (user, season); the season comes from the member's end date, or from the
+start date when the roster entry is open-ended (active members have no end date).
+When a member appears in multiple teams in the same season, the first team in
+`TEAM_TYPES` order (VSE1…VSE6, then MSE1…MSE6, then V3x3) wins. A team member with no matching
 membership row is logged and skipped (no row is created). `registered_team`
 remains `NULL` — it is not present in either payload.
 

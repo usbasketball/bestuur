@@ -165,6 +165,14 @@ export function seasonFromEndDate(endDate: string | null | undefined): string | 
   return `${startYear}-${startYear + 1}`;
 }
 
+// Derive the season from a member/plan date range. Team roster entries for
+// active members have no end date (end is null, e.g. "2026-08-01" start with an
+// open end), so fall back to the start date. Both boundaries share the same
+// month-based season rule.
+export function seasonFromDates(startDate: string | null | undefined, endDate: string | null | undefined): string | null {
+  return seasonFromEndDate(endDate) ?? seasonFromEndDate(startDate);
+}
+
 // ── Artifacts (local dev inspection) ──────────────────────────────────────────
 
 const ARTIFACTS_DIR = path.join(rootDir, "scripts", "artifacts", "club-memberships");
@@ -255,8 +263,9 @@ export async function upsertClubMembership(db: Db, p: UpsertClubMembershipParams
 // ── primary_team (team members) ───────────────────────────────────────────────
 
 // Build a map of `${personId}|${season}` → TeamType from per-team member lists.
-// The season is derived from each member's end date (same logic as plans). When
-// a person appears in multiple teams within the same season, the first one wins
+// The season is derived from each member's end date, falling back to the start
+// date when the roster entry is open-ended (active members). When a person
+// appears in multiple teams within the same season, the first one wins
 // (iteration order, i.e. ascending foysTeamId for determinism) — secondary teams
 // are ignored. Tolerates null/unknown team types by skipping them.
 export function buildPrimaryTeamMap(
@@ -273,7 +282,7 @@ export function buildPrimaryTeamMap(
     const members = membersByTeam.get(team.foysTeamId) ?? [];
     for (const member of members) {
       if (!member.personId) continue;
-      const season = seasonFromEndDate(member.end);
+      const season = seasonFromDates(member.start, member.end);
       if (!season) continue;
       const key = `${member.personId}|${season}`;
       if (!primaryTeamMap.has(key)) {

@@ -3,6 +3,7 @@ import {
   fetchPlanAssignments,
   fetchTeamMembers,
   seasonFromEndDate,
+  seasonFromDates,
   choosePlan,
   queryUsers,
   queryTeamsWithFoysId,
@@ -37,6 +38,22 @@ describe("seasonFromEndDate", () => {
     expect(seasonFromEndDate(null)).toBeNull();
     expect(seasonFromEndDate(undefined)).toBeNull();
     expect(seasonFromEndDate("not-a-date")).toBeNull();
+  });
+});
+
+describe("seasonFromDates", () => {
+  it("uses the end date when present", () => {
+    expect(seasonFromDates("2025-09-01", "2026-07-31")).toBe("2025-2026");
+  });
+
+  it("falls back to the start date when the end date is null", () => {
+    expect(seasonFromDates("2026-08-01", null)).toBe("2026-2027");
+    expect(seasonFromDates(undefined, "2027-07-31")).toBe("2026-2027");
+  });
+
+  it("returns null when both dates are unusable", () => {
+    expect(seasonFromDates(null, null)).toBeNull();
+    expect(seasonFromDates("", "not-a-date")).toBeNull();
   });
 });
 
@@ -168,6 +185,14 @@ describe("buildPrimaryTeamMap", () => {
     const map = buildPrimaryTeamMap([mse1, vse6], membersByTeam as never);
     // TEAM_TYPES order puts VSE6 before MSE1, so VSE6 wins despite the higher id.
     expect(map.get("g-1|2026-2027")).toBe("VSE6");
+  });
+
+  it("maps active members (null end) via their start date", () => {
+    const membersByTeam = new Map<number, unknown[]>([
+      [68465, [{ personId: "g-1", start: "2026-08-01", end: null }]],
+    ]);
+    const map = buildPrimaryTeamMap(teams, membersByTeam as never);
+    expect(map.get("g-1|2026-2027")).toBe("VSE1");
   });
 
   it("skips members with unusable end dates", () => {
