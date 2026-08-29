@@ -17,11 +17,15 @@
 //   AUTH0_M2M_CLIENT_SECRET   M2M app client secret
 //   FOYS_API_KEY              Foys bearer token
 
-import { Pool, QueryResult } from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import dotenv from "dotenv";
+import { Pool } from "pg";
+import "temporal-polyfill/full/global";
+import postgres from "@prisma/orm-postgres/runtime";
+import type { Contract } from "../prisma/contract.d";
+import contractJson from "../prisma/contract.json";
 import { REFEREE_LEVELS, TAG_CODE_TO_LEVEL } from "../lib/types";
 
 const dryRun = !process.argv.includes("--live");
@@ -264,6 +268,21 @@ function saveArtifact(filename: string, data: unknown): void {
 
 // ── Database ──────────────────────────────────────────────────────────────────
 
+// Convert a JS Date to the Sustained/temporal PlainDateTime the ORM expects for
+// `timestamp` columns. Timestamps are stored as UTC (no timezone), so we map
+// from the Date's UTC components.
+function toPlainDateTime(d: Date): Temporal.PlainDateTime {
+  return new Temporal.PlainDateTime(
+    d.getUTCFullYear(),
+    d.getUTCMonth() + 1,
+    d.getUTCDate(),
+    d.getUTCHours(),
+    d.getUTCMinutes(),
+    d.getUTCSeconds(),
+    d.getUTCMilliseconds() * 1_000_000,
+  );
+}
+
 interface UpsertUserParams {
   email: string;
   firstName: string | null;
@@ -273,26 +292,40 @@ interface UpsertUserParams {
   foysUserId: string | null;
   auth0Sub: string | null;
   refereeLevel: string | null;
-  memberSince: Date | null;
+  memberSince: Temporal.PlainDateTime | null;
 }
 
-async function upsertUser(pool: Pool, { email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel, memberSince }: UpsertUserParams): Promise<QueryResult> {
-  const query = `
-    INSERT INTO users (id, email, first_name, last_name_prefix, last_name, nbb_number, foys_user_id, auth0_sub, referee_level, member_since, created_at, updated_at)
-    VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
-    ON CONFLICT (email) DO UPDATE SET
-      first_name = EXCLUDED.first_name,
-      last_name_prefix = EXCLUDED.last_name_prefix,
-      last_name = EXCLUDED.last_name,
-      nbb_number = COALESCE(EXCLUDED.nbb_number, users.nbb_number),
-      foys_user_id = COALESCE(EXCLUDED.foys_user_id, users.foys_user_id),
-      auth0_sub = COALESCE(EXCLUDED.auth0_sub, users.auth0_sub),
-      referee_level = COALESCE(EXCLUDED.referee_level, users.referee_level),
-      member_since = COALESCE(EXCLUDED.member_since, users.member_since),
-      updated_at = now()
-    RETURNING id, (xmax = 0) AS inserted
-  `;
-  return pool.query(query, [email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel, memberSince]);
+type UserDb = ReturnType<typeof postgres<Contract>>;
+
+async function upsertUser(db: UserDb, { email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel, memberSince }: UpsertUserParams): Promise<void> {
+  // The raw SQL version only overwrote a value when the incoming value was
+  // non-null (COALESCE(EXCLUDED.x, users.x)); preserve that by only writing
+  // non-null fields on update.
+  const update: Record<string, unknown> = {};
+  if (firstName != null) update.firstName = firstName;
+  if (lastNamePrefix != null) update.lastNamePrefix = lastNamePrefix;
+  if (lastName != null) update.lastName = lastName;
+  if (nbbNumber != null) update.nbbNumber = nbbNumber;
+  if (foysUserId != null) update.foysUserId = foysUserId;
+  if (auth0Sub != null) update.auth0Sub = auth0Sub;
+  if (refereeLevel != null) update.refereeLevel = refereeLevel;
+  if (memberSince != null) update.memberSince = memberSince;
+
+  await db.orm.public.User.upsert({
+    create: {
+      email,
+      firstName,
+      lastNamePrefix,
+      lastName,
+      nbbNumber,
+      foysUserId,
+      auth0Sub,
+      refereeLevel,
+      memberSince,
+    },
+    update,
+    conflictOn: { email },
+  });
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -362,9 +395,9 @@ async function main(): Promise<void> {
 
   // 3. Connect to database
   const pool = new Pool({ connectionString: DATABASE_URL });
+  const db = postgres<Contract>({ contractJson, pg: pool });
 
-  let created = 0;
-  let updated = 0;
+  let upserted = 0;
   let skipped = 0;
   let errors = 0;
   const personDetailSamples: { guid: string; detail: FoysMemberDetail }[] = [];
@@ -412,7 +445,7 @@ async function main(): Promise<void> {
     }
 
     try {
-      const result = await upsertUser(pool, {
+      await upsertUser(db, {
         email,
         firstName,
         lastNamePrefix,
@@ -421,16 +454,10 @@ async function main(): Promise<void> {
         foysUserId,
         auth0Sub,
         refereeLevel,
-        memberSince,
+        memberSince: memberSince ? toPlainDateTime(memberSince) : null,
       });
-      const inserted = result.rows[0]?.inserted;
-      if (inserted) {
-        console.log(`Created: ${member.fullName} (${email})`);
-        created++;
-      } else {
-        console.log(`Updated: ${member.fullName} (${email})`);
-        updated++;
-      }
+      console.log(`Upserted: ${member.fullName} (${email})`);
+      upserted++;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`Error for ${member.fullName} (${email}): ${message}`);
@@ -445,7 +472,7 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `\nDone. Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors}`
+    `\nDone. Upserted: ${upserted}, Skipped: ${skipped}, Errors: ${errors}`
   );
 }
 

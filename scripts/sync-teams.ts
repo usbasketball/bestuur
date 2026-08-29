@@ -16,11 +16,14 @@
 //   DATABASE_URL   PostgreSQL connection string
 //   FOYS_API_KEY   Foys bearer token
 
-import { Pool, QueryResult } from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import dotenv from "dotenv";
+import { Pool } from "pg";
+import postgres from "@prisma/orm-postgres/runtime";
+import type { Contract } from "../prisma/contract.d";
+import contractJson from "../prisma/contract.json";
 import { mapTeamType, TEAM_TYPES, TeamType, Discipline } from "../lib/types";
 
 const dryRun = !process.argv.includes("--live");
@@ -193,33 +196,28 @@ interface UpsertTeamParams {
   discipline: Discipline;
 }
 
-async function upsertTeam(pool: Pool, { foysCompetitionTeamId, name, season, teamType, discipline }: UpsertTeamParams): Promise<QueryResult> {
-  const query = `
-    INSERT INTO teams (id, foys_competition_team_id, name, season, team_type, discipline, created_at, updated_at)
-    VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, now(), now())
-    ON CONFLICT (foys_competition_team_id) DO UPDATE SET
-      name = EXCLUDED.name,
-      season = EXCLUDED.season,
-      team_type = EXCLUDED.team_type,
-      discipline = EXCLUDED.discipline,
-      updated_at = now()
-    RETURNING id, (xmax = 0) AS inserted
-  `;
-  return pool.query(query, [foysCompetitionTeamId, name, season, teamType, discipline]);
+async function upsertTeam(db: ReturnType<typeof postgres<Contract>>, { foysCompetitionTeamId, name, season, teamType, discipline }: UpsertTeamParams): Promise<void> {
+  await db.orm.public.Team.upsert({
+    create: { foysCompetitionTeamId, name, season, teamType, discipline },
+    update: { name, season, teamType, discipline },
+    conflictOn: { foysCompetitionTeamId },
+  });
 }
 
 // Link the general FOYS team id (foys_team_id) onto an existing team row,
 // matched by (team_type, season). Rows are only created by the competition
-// sync above, so a missing row is skipped rather than inserted without a
-// foys_competition_team_id.
-async function upsertGeneralTeamId(pool: Pool, p: { foysTeamId: number; season: string; teamType: TeamType; name: string | null }): Promise<QueryResult> {
-  const query = `
-    UPDATE teams
-    SET foys_team_id = $1, name = COALESCE($3, name), updated_at = now()
-    WHERE team_type = $2 AND season = $4
-    RETURNING id
-  `;
-  return pool.query(query, [p.foysTeamId, p.teamType, p.name, p.season]);
+// sync above, so a missing row returns false and is skipped rather than
+// inserted without a foys_competition_team_id.
+async function upsertGeneralTeamId(db: ReturnType<typeof postgres<Contract>>, p: { foysTeamId: number; season: string; teamType: TeamType; name: string | null }): Promise<boolean> {
+  const existing = await db.orm.public.Team
+    .where({ teamType: p.teamType, season: p.season })
+    .first();
+  if (!existing) return false;
+
+  await db.orm.public.Team
+    .where({ id: existing.id })
+    .update({ foysTeamId: p.foysTeamId, name: p.name ?? existing.name });
+  return true;
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -238,9 +236,9 @@ async function main(): Promise<void> {
 
   // 2. Connect to database
   const pool = new Pool({ connectionString: DATABASE_URL });
+  const db = postgres<Contract>({ contractJson, pg: pool });
 
-  let created = 0;
-  let updated = 0;
+  let upserted = 0;
   let skipped = 0;
   let errors = 0;
 
@@ -270,21 +268,15 @@ async function main(): Promise<void> {
     }
 
     try {
-      const result = await upsertTeam(pool, {
+      await upsertTeam(db, {
         foysCompetitionTeamId: team.id,
         name: team.name,
         season,
         teamType,
         discipline,
       });
-      const inserted = result.rows[0]?.inserted;
-      if (inserted) {
-        console.log(`Created: ${sanitizedName} (${season}, ${teamType})`);
-        created++;
-      } else {
-        console.log(`Updated: ${sanitizedName} (${season}, ${teamType})`);
-        updated++;
-      }
+      console.log(`Upserted: ${sanitizedName} (${season}, ${teamType})`);
+      upserted++;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`Error for ${sanitizedName} (${season}): ${message}`);
@@ -323,13 +315,13 @@ async function main(): Promise<void> {
     }
 
     try {
-      const result = await upsertGeneralTeamId(pool, {
+      const linked = await upsertGeneralTeamId(db, {
         foysTeamId: team.id,
         name: team.name,
         season,
         teamType,
       });
-      if (result.rowCount && result.rowCount > 0) {
+      if (linked) {
         console.log(`Linked foysTeamId=${team.id} → ${teamType} (${season})`);
       } else {
         console.log(`No competition row for general team: ${sanitizedName} (${season}, ${teamType}) — skipped`);
@@ -344,7 +336,7 @@ async function main(): Promise<void> {
   await pool.end();
 
   console.log(
-    `\nDone. Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors}`
+    `\nDone. Upserted: ${upserted}, Skipped: ${skipped}, Errors: ${errors}`
   );
   console.log(`General teams synced: ${generalTotal}`);
 }

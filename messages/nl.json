@@ -54,7 +54,7 @@
       "openInFoys": "Openen in FOYS"
     },
     "teams": {
-      "title": "Competitieteams",
+      "title": "Teams",
       "count": "{count, plural, =0 {Geen teams} one {# team} other {# teams}}",
       "columns": {
         "type": "Type",

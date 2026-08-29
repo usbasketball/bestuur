@@ -20,11 +20,15 @@
 //   DATABASE_URL   PostgreSQL connection string
 //   FOYS_API_KEY   Foys bearer token
 
-import { Pool, QueryResult } from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import dotenv from "dotenv";
+import { Pool } from "pg";
+import "temporal-polyfill/full/global";
+import postgres from "@prisma/orm-postgres/runtime";
+import type { Contract } from "../prisma/contract.d";
+import contractJson from "../prisma/contract.json";
 import { mapPlanMembershipType, ClubMembershipType, TeamType } from "../lib/types";
 
 const dryRun = !process.argv.includes("--live");
@@ -107,17 +111,35 @@ function saveArtifact(filename: string, data: unknown): void {
 
 // ── Database ──────────────────────────────────────────────────────────────────
 
+type Db = ReturnType<typeof postgres<Contract>>;
+
+function toPlainDateTime(d: Date): Temporal.PlainDateTime {
+  return new Temporal.PlainDateTime(
+    d.getUTCFullYear(),
+    d.getUTCMonth() + 1,
+    d.getUTCDate(),
+    d.getUTCHours(),
+    d.getUTCMinutes(),
+    d.getUTCSeconds(),
+    d.getUTCMilliseconds() * 1_000_000,
+  );
+}
+
 interface DbUser {
   id: string;
   foys_user_id: string | null;
   email: string | null;
 }
 
-async function queryUsers(pool: Pool): Promise<DbUser[]> {
-  const result = await pool.query(
-    "SELECT id, foys_user_id, email FROM users WHERE foys_user_id IS NOT NULL ORDER BY email"
-  );
-  return result.rows;
+async function queryUsers(db: Db): Promise<DbUser[]> {
+  const rows = await db.orm.public.User.select("id", "foysUserId", "email")
+    .where((u) => u.foysUserId.isNotNull())
+    .all();
+  return rows.map((u) => ({
+    id: u.id,
+    foys_user_id: u.foysUserId,
+    email: u.email,
+  }));
 }
 
 interface UpsertClubMembershipParams {
@@ -125,34 +147,29 @@ interface UpsertClubMembershipParams {
   season: string;
   primaryTeam: TeamType | null;
   registeredTeam: TeamType | null;
-  membershipType: ClubMembershipType | null;
-  cancelledAt: Date | null;
+  membershipType: ClubMembershipType;
+  cancelledAt: Temporal.PlainDateTime | null;
 }
 
-async function upsertClubMembership(pool: Pool, p: UpsertClubMembershipParams): Promise<QueryResult> {
-  const query = `
-    INSERT INTO club_memberships (
-      id, user_id, season, primary_team, registered_team, membership_type, cancelled_at,
-      created_at, updated_at
-    ) VALUES (
-      gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, now(), now()
-    )
-    ON CONFLICT (user_id, season) DO UPDATE SET
-      primary_team = EXCLUDED.primary_team,
-      registered_team = EXCLUDED.registered_team,
-      membership_type = EXCLUDED.membership_type,
-      cancelled_at = EXCLUDED.cancelled_at,
-      updated_at = now()
-    RETURNING id, (xmax = 0) AS inserted
-  `;
-  return pool.query(query, [
-    p.userId,
-    p.season,
-    p.primaryTeam,
-    p.registeredTeam,
-    p.membershipType,
-    p.cancelledAt,
-  ]);
+async function upsertClubMembership(db: Db, p: UpsertClubMembershipParams): Promise<void> {
+  const update: Record<string, unknown> = {};
+  if (p.primaryTeam != null) update.primaryTeam = p.primaryTeam;
+  if (p.registeredTeam != null) update.registeredTeam = p.registeredTeam;
+  if (p.membershipType != null) update.membershipType = p.membershipType;
+  if (p.cancelledAt != null) update.cancelledAt = p.cancelledAt;
+
+  await db.orm.public.ClubMembership.upsert({
+    create: {
+      userId: p.userId,
+      season: p.season,
+      primaryTeam: p.primaryTeam,
+      registeredTeam: p.registeredTeam,
+      membershipType: p.membershipType,
+      cancelledAt: p.cancelledAt,
+    },
+    update,
+    conflictOn: { userId: p.userId, season: p.season },
+  });
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -164,7 +181,8 @@ async function main(): Promise<void> {
 
   // 1. Query users from database
   const pool = new Pool({ connectionString: DATABASE_URL });
-  const users = await queryUsers(pool);
+  const db = postgres<Contract>({ contractJson, pg: pool });
+  const users = await queryUsers(db);
   console.log(`Found ${users.length} users with foys_user_id.\n`);
 
   if (users.length === 0) {
@@ -173,9 +191,8 @@ async function main(): Promise<void> {
     return;
   }
 
-  let created = 0;
-  let updated = 0;
-  const skipped = 0;
+  let upserted = 0;
+  let skipped = 0;
   let errors = 0;
   let clubPlansFound = 0;
   const perSeasonPlans = new Map<string, { user: DbUser; season: string; plan: FoysPlanAssignment }[]>();
@@ -245,6 +262,11 @@ async function main(): Promise<void> {
       ? new Date(chosen.plan.cancellationDate)
       : null;
 
+    if (!membershipType) {
+      skipped++;
+      continue;
+    }
+
     if (dryRun) {
       console.log(
         `Would upsert: ${user.email || key} — ${season}, type: ${membershipType || "?"}${plans.length > 1 ? ` (${plans.length} plans)` : ""}, cancelled: ${cancelledAt ? cancelledAt.toISOString().slice(0, 10) : "no"}`
@@ -253,20 +275,15 @@ async function main(): Promise<void> {
     }
 
     try {
-      const result = await upsertClubMembership(pool, {
+      await upsertClubMembership(db, {
         userId: user.id,
         season,
         primaryTeam: null,
         registeredTeam: null,
         membershipType,
-        cancelledAt,
+        cancelledAt: cancelledAt ? toPlainDateTime(cancelledAt) : null,
       });
-      const inserted = result.rows[0]?.inserted;
-      if (inserted) {
-        created++;
-      } else {
-        updated++;
-      }
+      upserted++;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`  Error upserting club membership for ${user.email} (${season}): ${message}`);
@@ -277,7 +294,7 @@ async function main(): Promise<void> {
   await pool.end();
 
   console.log(
-    `\nDone. Club plans: ${clubPlansFound}, Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors}`
+    `\nDone. Club plans: ${clubPlansFound}, Upserted: ${upserted}, Skipped: ${skipped}, Errors: ${errors}`
   );
 }
 
