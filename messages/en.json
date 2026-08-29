@@ -42,12 +42,13 @@
       "count": "{count, plural, =0 {No members} one {# member} other {# members}}",
       "columns": {
         "name": "Name",
-        "membershipType": "Type",
+        "membershipType": "Comp",
         "email": "Email",
         "nbb": "NBB #",
         "refereeLevel": "Referee level",
         "memberSince": "Member since",
-        "primaryTeam": "Primary team"
+        "primaryTeam": "Primary team",
+        "coachedTeam": "Coach"
       },
       "membershipTypes": {
         "COMPETITION": "Competition",
