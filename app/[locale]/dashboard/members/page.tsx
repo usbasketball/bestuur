@@ -30,7 +30,7 @@ export default async function MembersPage({ params }: Props) {
     .include("memberships", (m) =>
       m
         .where((x) => x.season.eq(CURRENT_SEASON))
-        .select("membershipType"),
+        .select("membershipType", "primaryTeam"),
     )
     .orderBy([(u) => u.lastName.asc(), (u) => u.firstName.asc()])
     .all();
@@ -53,6 +53,7 @@ export default async function MembersPage({ params }: Props) {
             <tr className="border-b border-line text-xs uppercase tracking-wider text-ink-muted">
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium" aria-label={t("openInFoys")} />
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.membershipType")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.primaryTeam")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.name")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.email")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.nbb")}</th>
@@ -62,7 +63,9 @@ export default async function MembersPage({ params }: Props) {
           </thead>
           <tbody>
             {users.map((user) => {
-              const membershipType = user.memberships[0]?.membershipType ?? null;
+              const membership = user.memberships[0];
+              const membershipType = membership?.membershipType ?? null;
+              const primaryTeam = membership?.primaryTeam ?? null;
               return (
                 <tr key={user.id} className="border-b border-line/50">
                   <td className="py-3 pr-4">
@@ -96,6 +99,9 @@ export default async function MembersPage({ params }: Props) {
                       </span>
                     )}
                     {!membershipType && <span aria-hidden="true">—</span>}
+                  </td>
+                  <td className="py-3 pr-4 font-mono text-ink">
+                    {primaryTeam ?? "—"}
                   </td>
                   <td className="py-3 pr-4 text-ink">
                     {[user.firstName, user.lastNamePrefix, user.lastName]

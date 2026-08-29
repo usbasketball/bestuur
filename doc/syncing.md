@@ -42,8 +42,16 @@ one row, preferring a competition plan. The season is derived from the plan's
 **end date** (seasons end in summer, so an end date of 2027-07-31 → `2026-2027`).
 
 Membership type is derived from the plan name via `mapPlanMembershipType()` in
-`lib/types/club-membership-type.ts`. `primary_team` / `registered_team` are not present
-in this payload and are currently left `NULL`.
+`lib/types/club-membership-type.ts`. `primary_team` is derived from each general
+team's active members via
+`GET /foys/api/v1/management/teams/{teamId}/members?activeMembers=true`
+(teams discovered from the local `teams` table where `foys_team_id` is set, so the
+stored team type maps the team's FOYS id to a `TeamType`). Each member's
+`primary_team` is keyed by (user, season); when a member appears in multiple
+teams in the same season, the first team in `TEAM_TYPES` order (VSE1…VSE6, then
+MSE1…MSE6, then V3x3) wins. A team member with no matching
+membership row is logged and skipped (no row is created). `registered_team`
+remains `NULL` — it is not present in either payload.
 
 ```bash
 npm run sync:club-memberships               # dry run (default)
@@ -105,7 +113,9 @@ the exact shape of the data can be inspected during local development:
 - `sync:matches` writes `scripts/artifacts/matches/<foysCompetitionTeamId>.json` (raw
   matches fetched per team).
 - `sync:club-memberships` writes `scripts/artifacts/club-memberships/<foysUserId>.json`
-  (raw plan assignments for each synced user).
+  (raw plan assignments for each synced user) and
+  `scripts/artifacts/club-memberships/<foysTeamId>.members.json`
+  (raw team members for each general team).
 - `backfill:team-members` writes `scripts/artifacts/team-members/<teamId>.request.json` and
   `<teamId>.response.json` (the backfill request and API response).
 

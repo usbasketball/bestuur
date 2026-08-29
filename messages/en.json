@@ -45,7 +45,8 @@
         "email": "Email",
         "nbb": "NBB #",
         "refereeLevel": "Referee level",
-        "memberSince": "Member since"
+        "memberSince": "Member since",
+        "primaryTeam": "Primary team"
       },
       "membershipTypes": {
         "COMPETITION": "Competition",
