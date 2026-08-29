@@ -52,6 +52,10 @@
         "COMPETITION": "Competition",
         "RECREATIONAL": "Recreational"
       },
+      "filter": {
+        "label": "Team type",
+        "all": "All teams"
+      },
       "openInFoys": "Open in FOYS"
     },
     "teams": {
