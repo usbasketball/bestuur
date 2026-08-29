@@ -2,7 +2,7 @@
 
 // Sync home matches from FOYS competition API.
 //
-// 1. Queries competition_teams from the local database
+// 1. Queries teams from the local database
 // 2. For each team, fetches matches from the FOYS API
 // 3. Filters for US home games only (homeOrganisation.id matches)
 // 4. Upserts each match into the local PostgreSQL matches table
@@ -18,12 +18,17 @@
 //   DATABASE_URL   PostgreSQL connection string
 //   FOYS_API_KEY   Foys bearer token
 
-import { Pool, QueryResult } from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import dotenv from "dotenv";
+import { Pool } from "pg";
+import "temporal-polyfill/full/global";
+import postgres from "@prisma/orm-postgres/runtime";
+import type { Contract } from "../prisma/contract.d";
+import contractJson from "../prisma/contract.json";
 import { mapFieldType, mapMatchStatus } from "../lib/types";
+import { isMainModule } from "../lib/is-main";
 
 const dryRun = !process.argv.includes("--live");
 const args = process.argv.slice(2);
@@ -41,14 +46,16 @@ dotenv.config({ path: path.join(rootDir, ".env") });
 const DATABASE_URL = process.env.DATABASE_URL;
 const FOYS_API_KEY = process.env.FOYS_API_KEY;
 
-if (!DATABASE_URL) {
-  console.error("Missing DATABASE_URL env var.");
-  process.exit(1);
-}
+function validateEnv(): void {
+  if (!DATABASE_URL) {
+    console.error("Missing DATABASE_URL env var.");
+    process.exit(1);
+  }
 
-if (!FOYS_API_KEY) {
-  console.error("Missing FOYS_API_KEY env var.");
-  process.exit(1);
+  if (!FOYS_API_KEY) {
+    console.error("Missing FOYS_API_KEY env var.");
+    process.exit(1);
+  }
 }
 
 const US_ORGANISATION_ID = "2f1e5e8e-e2c5-4d8b-9d21-1584bc6c8d5a";
@@ -121,7 +128,7 @@ interface FoysMatchesResponse {
   items: FoysMatch[];
 }
 
-async function fetchMatchesForTeam(teamId: number): Promise<FoysMatch[]> {
+export async function fetchMatchesForTeam(teamId: number): Promise<FoysMatch[]> {
   const allMatches: FoysMatch[] = [];
   let skip = 0;
   let totalCount = Infinity;
@@ -169,41 +176,69 @@ function saveArtifact(filename: string, data: unknown): void {
 
 // ── Database ──────────────────────────────────────────────────────────────────
 
+type Db = ReturnType<typeof postgres<Contract>>;
+
 interface DbTeam {
-  id: string;
-  foys_team_id: number;
+  foysCompetitionTeamId: number;
   name: string | null;
   season: string;
-  team_type: string;
+  teamType: string;
 }
 
-async function queryTeams(pool: Pool): Promise<DbTeam[]> {
-  let query = "SELECT id, foys_team_id, name, season, team_type FROM competition_teams";
-  const conditions: string[] = [];
-  const params: string[] = [];
+export async function queryTeams(
+  db: Db,
+  filter: { season?: string; teamType?: string } = {},
+): Promise<DbTeam[]> {
+  const filterSeason = filter.season;
+  const filterTeam = filter.teamType ? filter.teamType.toUpperCase() : undefined;
+  const results: DbTeam[] = [];
 
+  const push = (t: { foysCompetitionTeamId: number; name: string | null; season: string; teamType: string }): void => {
+    results.push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: t.teamType });
+  };
+
+  if (filterSeason && filterTeam) {
+    const rows = await db.orm.public.Team
+      .select("foysCompetitionTeamId", "name", "season", "teamType")
+      .where({ season: filterSeason })
+      .all();
+    for (const t of rows) {
+      if (String(t.teamType) === filterTeam) push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
+    }
+    return results;
+  }
   if (filterSeason) {
-    params.push(filterSeason);
-    conditions.push(`season = $${params.length}`);
+    const rows = await db.orm.public.Team
+      .select("foysCompetitionTeamId", "name", "season", "teamType")
+      .where({ season: filterSeason })
+      .all();
+    for (const t of rows) {
+      push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
+    }
+    return results;
   }
   if (filterTeam) {
-    params.push(filterTeam.toUpperCase());
-    conditions.push(`team_type = $${params.length}`);
+    const rows = await db.orm.public.Team
+      .select("foysCompetitionTeamId", "name", "season", "teamType")
+      .all();
+    for (const t of rows) {
+      if (String(t.teamType) === filterTeam) push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
+    }
+    return results;
   }
-
-  if (conditions.length > 0) {
-    query += ` WHERE ${conditions.join(" AND ")}`;
+  const rows = await db.orm.public.Team
+    .select("foysCompetitionTeamId", "name", "season", "teamType")
+    .all();
+  for (const t of rows) {
+    push({ foysCompetitionTeamId: t.foysCompetitionTeamId, name: t.name, season: t.season, teamType: String(t.teamType) });
   }
-  query += " ORDER BY team_type, season";
-
-  const result = await pool.query(query, params);
-  return result.rows;
+  return results;
 }
 
 interface UpsertMatchParams {
   foysMatchId: number;
   status: string;
-  date: string;
+  date: Temporal.PlainDateTime;
   startTime: string | null;
   isFriendly: boolean;
   homeScore: number | null;
@@ -218,48 +253,45 @@ interface UpsertMatchParams {
   field: string | null;
 }
 
-async function upsertMatch(pool: Pool, p: UpsertMatchParams): Promise<QueryResult> {
-  const query = `
-    INSERT INTO matches (
-      id, foys_match_id, status, date, start_time, is_friendly,
-      home_score, away_score, home_team_foys_id, away_team_foys_id,
-      away_team_name, away_organisation_id, away_organisation_name,
-      competition_id, competition_type_name,
-      field,
-      created_at, updated_at
-    ) VALUES (
-      gen_random_uuid()::text, $1, $2, $3, $4, $5,
-      $6, $7, $8, $9,
-      $10, $11, $12,
-      $13, $14,
-      $15,
-      now(), now()
-    )
-    ON CONFLICT (foys_match_id) DO UPDATE SET
-      status = EXCLUDED.status,
-      home_score = EXCLUDED.home_score,
-      away_score = EXCLUDED.away_score,
-      home_team_foys_id = EXCLUDED.home_team_foys_id,
-      away_team_foys_id = EXCLUDED.away_team_foys_id,
-      away_team_name = EXCLUDED.away_team_name,
-      away_organisation_id = EXCLUDED.away_organisation_id,
-      away_organisation_name = EXCLUDED.away_organisation_name,
-      field = EXCLUDED.field,
-      updated_at = now()
-    RETURNING id, (xmax = 0) AS inserted
-  `;
-  return pool.query(query, [
-    p.foysMatchId, p.status, p.date, p.startTime, p.isFriendly,
-    p.homeScore, p.awayScore, p.homeTeamFoysId, p.awayTeamFoysId,
-    p.awayTeamName, p.awayOrganisationId, p.awayOrganisationName,
-    p.competitionId, p.competitionTypeName,
-    p.field,
-  ]);
+export async function upsertMatch(db: Db, p: UpsertMatchParams): Promise<void> {
+  await db.orm.public.Match.upsert({
+    create: {
+      foysMatchId: p.foysMatchId,
+      status: p.status as never,
+      date: p.date,
+      startTime: p.startTime,
+      isFriendly: p.isFriendly,
+      homeScore: p.homeScore,
+      awayScore: p.awayScore,
+      homeTeamFoysId: p.homeTeamFoysId,
+      awayTeamFoysId: p.awayTeamFoysId,
+      awayTeamName: p.awayTeamName,
+      awayOrganisationId: p.awayOrganisationId,
+      awayOrganisationName: p.awayOrganisationName,
+      competitionId: p.competitionId,
+      competitionTypeName: p.competitionTypeName,
+      field: (p.field as never) ?? undefined,
+    },
+    update: {
+      status: p.status as never,
+      homeScore: p.homeScore,
+      awayScore: p.awayScore,
+      homeTeamFoysId: p.homeTeamFoysId,
+      awayTeamFoysId: p.awayTeamFoysId,
+      awayTeamName: p.awayTeamName,
+      awayOrganisationId: p.awayOrganisationId,
+      awayOrganisationName: p.awayOrganisationName,
+      field: (p.field as never) ?? undefined,
+    },
+    conflictOn: { foysMatchId: p.foysMatchId },
+  });
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  validateEnv();
+
   if (dryRun) {
     console.log("=== DRY RUN (no database writes) ===\n");
   }
@@ -269,7 +301,8 @@ async function main(): Promise<void> {
 
   // 1. Query teams from database
   const pool = new Pool({ connectionString: DATABASE_URL });
-  const teams = await queryTeams(pool);
+  const db = postgres<Contract>({ contractJson, pg: pool });
+  const teams = await queryTeams(db, { season: filterSeason, teamType: filterTeam });
   console.log(`Found ${teams.length} teams in database.\n`);
 
   if (teams.length === 0) {
@@ -278,18 +311,17 @@ async function main(): Promise<void> {
     return;
   }
 
-  let created = 0;
-  let updated = 0;
+  let upserted = 0;
   let skipped = 0;
   let errors = 0;
 
   for (const team of teams) {
-    const label = `${team.name || "?"} (${team.team_type}, ${team.season})`;
+    const label = `${team.name || "?"} (${team.teamType}, ${team.season})`;
     console.log(`Fetching matches for ${label}...`);
 
     let matches: FoysMatch[];
     try {
-      matches = await fetchMatchesForTeam(team.foys_team_id);
+      matches = await fetchMatchesForTeam(team.foysCompetitionTeamId);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`  Error fetching matches for ${label}: ${message}`);
@@ -297,7 +329,7 @@ async function main(): Promise<void> {
       continue;
     }
 
-    saveArtifact(`${team.foys_team_id}.json`, matches);
+    saveArtifact(`${team.foysCompetitionTeamId}.json`, matches);
 
     const homeMatches = matches.filter(
       (m) => m.homeOrganisation?.id === US_ORGANISATION_ID
@@ -318,10 +350,10 @@ async function main(): Promise<void> {
       }
 
       try {
-        const result = await upsertMatch(pool, {
+        await upsertMatch(db, {
           foysMatchId: match.id,
           status: mapMatchStatus(match.status)!,
-          date: match.date,
+          date: Temporal.PlainDateTime.from(match.date),
           startTime: match.startTime,
           isFriendly: match.isFriendly,
           homeScore: match.homeScore,
@@ -335,12 +367,7 @@ async function main(): Promise<void> {
           competitionTypeName: match.competitionType.name,
           field: mapFieldType(match.field?.name),
         });
-        const inserted = result.rows[0]?.inserted;
-        if (inserted) {
-          created++;
-        } else {
-          updated++;
-        }
+        upserted++;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         console.error(`  Error upserting match ${match.id}: ${message}`);
@@ -352,8 +379,10 @@ async function main(): Promise<void> {
   await pool.end();
 
   console.log(
-    `\nDone. Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors}`
+    `\nDone. Upserted: ${upserted}, Skipped: ${skipped}, Errors: ${errors}`
   );
 }
 
-main();
+if (isMainModule(import.meta.url)) {
+  void main();
+}

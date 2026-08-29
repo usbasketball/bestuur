@@ -17,7 +17,9 @@
     "sync:users": "tsx scripts/sync-users.ts",
     "sync:teams": "tsx scripts/sync-teams.ts",
     "sync:matches": "tsx scripts/sync-home-matches.ts",
-    "sync:club-memberships": "tsx scripts/sync-club-memberships.ts"
+    "sync:club-memberships": "tsx scripts/sync-club-memberships.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@auth0/nextjs-auth0": "^4.27.0",
@@ -42,6 +44,7 @@
     "prisma": "^8.0.0-rc.12",
     "tailwindcss": "^4",
     "tsx": "^4.23.12",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.11"
   }
 }

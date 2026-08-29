@@ -34,14 +34,20 @@ Teams from FOYS, categorized by `TeamType` enum.
 | Column | Type | DB column | Constraints |
 |---|---|---|---|
 | `id` | text (uuid) | `id` | PK, auto-generated |
-| `foysTeamId` | int | `foys_team_id` | UNIQUE, NOT NULL |
+| `foysCompetitionTeamId` | int | `foys_competition_team_id` | UNIQUE, NOT NULL |
+| `foysTeamId` | int? | `foys_team_id` | UNIQUE |
+| `name` | text? | `name` | |
 | `season` | text | `season` | NOT NULL |
 | `teamType` | TeamType | `team_type` | NOT NULL |
+| `discipline` | Discipline | `discipline` | DEFAULT `DISCIPLINE_5x5` |
 | `createdAt` | datetime | `created_at` | DEFAULT now() |
 | `updatedAt` | datetime | `updated_at` | auto-updated |
 
-Unique constraint: `(teamType, season)`
-Table name: `competition_teams`
+- `foysCompetitionTeamId` is the FOYS id from the **competition** management API (competition teams only).
+- `foysTeamId` is the FOYS id from the **general** management API (`/foys/api/v1/management/teams`), populated for competition and non-competition (training) teams.
+
+Indexed: `team_type`, `season`
+Table name: `teams`
 
 ### InterestSubmission
 

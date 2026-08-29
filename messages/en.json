@@ -54,14 +54,15 @@
       "openInFoys": "Open in FOYS"
     },
     "teams": {
-      "title": "Competition Teams",
+      "title": "Teams",
       "count": "{count, plural, =0 {No teams} one {# team} other {# teams}}",
       "columns": {
         "type": "Type",
         "name": "Name",
         "season": "Season",
         "discipline": "Discipline",
-        "foysId": "FOYS ID"
+        "foysCompetitionTeamId": "FOYS Competition ID",
+        "foysTeamId": "FOYS ID"
       },
       "openInFoys": "Open in FOYS"
     },

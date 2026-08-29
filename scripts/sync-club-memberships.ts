@@ -20,12 +20,17 @@
 //   DATABASE_URL   PostgreSQL connection string
 //   FOYS_API_KEY   Foys bearer token
 
-import { Pool, QueryResult } from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import dotenv from "dotenv";
-import { mapPlanMembershipType, ClubMembershipType, TeamType } from "../lib/types";
+import { Pool } from "pg";
+import "temporal-polyfill/full/global";
+import postgres from "@prisma/orm-postgres/runtime";
+import type { Contract } from "../prisma/contract.d";
+import contractJson from "../prisma/contract.json";
+import { mapPlanMembershipType, toPlainDateTime, ClubMembershipType, TeamType } from "../lib/types";
+import { isMainModule } from "../lib/is-main";
 
 const dryRun = !process.argv.includes("--live");
 
@@ -36,14 +41,16 @@ dotenv.config({ path: path.join(rootDir, ".env") });
 const DATABASE_URL = process.env.DATABASE_URL;
 const FOYS_API_KEY = process.env.FOYS_API_KEY;
 
-if (!DATABASE_URL) {
-  console.error("Missing DATABASE_URL env var.");
-  process.exit(1);
-}
+function validateEnv(): void {
+  if (!DATABASE_URL) {
+    console.error("Missing DATABASE_URL env var.");
+    process.exit(1);
+  }
 
-if (!FOYS_API_KEY) {
-  console.error("Missing FOYS_API_KEY env var.");
-  process.exit(1);
+  if (!FOYS_API_KEY) {
+    console.error("Missing FOYS_API_KEY env var.");
+    process.exit(1);
+  }
 }
 
 // ── FOYS API ──────────────────────────────────────────────────────────────────
@@ -64,7 +71,7 @@ interface FoysPlanAssignment {
   [key: string]: unknown;
 }
 
-async function fetchPlanAssignments(foysUserId: string): Promise<FoysPlanAssignment[]> {
+export async function fetchPlanAssignments(foysUserId: string): Promise<FoysPlanAssignment[]> {
   const res = await fetch(`${FOYS_PLAN_ASSIGNMENTS_API}/${foysUserId}`, {
     headers: {
       Accept: "application/json",
@@ -85,7 +92,7 @@ async function fetchPlanAssignments(foysUserId: string): Promise<FoysPlanAssignm
 // belong to the 2025-2026 season, 2027-07-31 belongs to 2026-2027). Using the
 // end date as the anchor handles mid-season joins where the start date is in a
 // different year. Returns null when the end date is unusable.
-function seasonFromEndDate(endDate: string | null | undefined): string | null {
+export function seasonFromEndDate(endDate: string | null | undefined): string | null {
   if (!endDate || !/^\d{4}-\d{2}/.test(endDate)) return null;
   const year = Number(endDate.slice(0, 4));
   const month = Number(endDate.slice(5, 7));
@@ -107,17 +114,23 @@ function saveArtifact(filename: string, data: unknown): void {
 
 // ── Database ──────────────────────────────────────────────────────────────────
 
+type Db = ReturnType<typeof postgres<Contract>>;
+
 interface DbUser {
   id: string;
   foys_user_id: string | null;
   email: string | null;
 }
 
-async function queryUsers(pool: Pool): Promise<DbUser[]> {
-  const result = await pool.query(
-    "SELECT id, foys_user_id, email FROM users WHERE foys_user_id IS NOT NULL ORDER BY email"
-  );
-  return result.rows;
+export async function queryUsers(db: Db): Promise<DbUser[]> {
+  const rows = await db.orm.public.User.select("id", "foysUserId", "email")
+    .where((u) => u.foysUserId.isNotNull())
+    .all();
+  return rows.map((u) => ({
+    id: u.id,
+    foys_user_id: u.foysUserId,
+    email: u.email,
+  }));
 }
 
 interface UpsertClubMembershipParams {
@@ -125,46 +138,64 @@ interface UpsertClubMembershipParams {
   season: string;
   primaryTeam: TeamType | null;
   registeredTeam: TeamType | null;
-  membershipType: ClubMembershipType | null;
-  cancelledAt: Date | null;
+  membershipType: ClubMembershipType;
+  cancelledAt: Temporal.PlainDateTime | null;
 }
 
-async function upsertClubMembership(pool: Pool, p: UpsertClubMembershipParams): Promise<QueryResult> {
-  const query = `
-    INSERT INTO club_memberships (
-      id, user_id, season, primary_team, registered_team, membership_type, cancelled_at,
-      created_at, updated_at
-    ) VALUES (
-      gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, now(), now()
-    )
-    ON CONFLICT (user_id, season) DO UPDATE SET
-      primary_team = EXCLUDED.primary_team,
-      registered_team = EXCLUDED.registered_team,
-      membership_type = EXCLUDED.membership_type,
-      cancelled_at = EXCLUDED.cancelled_at,
-      updated_at = now()
-    RETURNING id, (xmax = 0) AS inserted
-  `;
-  return pool.query(query, [
-    p.userId,
-    p.season,
-    p.primaryTeam,
-    p.registeredTeam,
-    p.membershipType,
-    p.cancelledAt,
-  ]);
+export async function upsertClubMembership(db: Db, p: UpsertClubMembershipParams): Promise<void> {
+  const update: Record<string, unknown> = {};
+  if (p.primaryTeam != null) update.primaryTeam = p.primaryTeam;
+  if (p.registeredTeam != null) update.registeredTeam = p.registeredTeam;
+  if (p.membershipType != null) update.membershipType = p.membershipType;
+  if (p.cancelledAt != null) update.cancelledAt = p.cancelledAt;
+
+  await db.orm.public.ClubMembership.upsert({
+    create: {
+      userId: p.userId,
+      season: p.season,
+      primaryTeam: p.primaryTeam,
+      registeredTeam: p.registeredTeam,
+      membershipType: p.membershipType,
+      cancelledAt: p.cancelledAt,
+    },
+    update,
+    conflictOn: { userId: p.userId, season: p.season },
+  });
+}
+
+// ── Plan selection ────────────────────────────────────────────────────────────
+
+// Choose the single representative plan for a (user, season): prefer a
+// COMPETITION plan, then RECREATIONAL, then fall back to the first plan.
+// Returns the chosen plan plus its mapped membership type (null when unknown).
+export function choosePlan(
+  plans: FoysPlanAssignment[],
+): { plan: FoysPlanAssignment; type: ClubMembershipType | null } {
+  const scored = plans.map((p) => {
+    const planName = p.plan?.name ?? p.planName;
+    const isMatchLicense = p.plan?.isMatchLicense ?? null;
+    return { plan: p, type: mapPlanMembershipType(planName, isMatchLicense) };
+  });
+  return (
+    scored.find((s) => s.type === "COMPETITION") ??
+    scored.find((s) => s.type === "RECREATIONAL") ??
+    scored[0]
+  );
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  validateEnv();
+
   if (dryRun) {
     console.log("=== DRY RUN (no database writes) ===\n");
   }
 
   // 1. Query users from database
   const pool = new Pool({ connectionString: DATABASE_URL });
-  const users = await queryUsers(pool);
+  const db = postgres<Contract>({ contractJson, pg: pool });
+  const users = await queryUsers(db);
   console.log(`Found ${users.length} users with foys_user_id.\n`);
 
   if (users.length === 0) {
@@ -173,9 +204,8 @@ async function main(): Promise<void> {
     return;
   }
 
-  let created = 0;
-  let updated = 0;
-  const skipped = 0;
+  let upserted = 0;
+  let skipped = 0;
   let errors = 0;
   let clubPlansFound = 0;
   const perSeasonPlans = new Map<string, { user: DbUser; season: string; plan: FoysPlanAssignment }[]>();
@@ -230,20 +260,17 @@ async function main(): Promise<void> {
   // "Recreanten" to "Wedstrijdspelend" within the same season).
   for (const [key, plans] of perSeasonPlans) {
     const { user, season } = plans[0];
-    const scored = plans.map((p) => {
-      const planName = p.plan.plan?.name ?? p.plan.planName;
-      const isMatchLicense = p.plan.plan?.isMatchLicense ?? null;
-      return { plan: p, type: mapPlanMembershipType(planName, isMatchLicense) };
-    });
-    const competition =
-      scored.find((s) => s.type === "COMPETITION") ??
-      scored.find((s) => s.type === "RECREATIONAL") ??
-      scored[0];
+    const competition = choosePlan(plans.map((p) => p.plan));
     const chosen = competition.plan;
     const membershipType = competition.type;
-    const cancelledAt = chosen.plan.cancellationDate
-      ? new Date(chosen.plan.cancellationDate)
+    const cancelledAt = chosen.cancellationDate
+      ? new Date(chosen.cancellationDate)
       : null;
+
+    if (!membershipType) {
+      skipped++;
+      continue;
+    }
 
     if (dryRun) {
       console.log(
@@ -253,20 +280,15 @@ async function main(): Promise<void> {
     }
 
     try {
-      const result = await upsertClubMembership(pool, {
+      await upsertClubMembership(db, {
         userId: user.id,
         season,
         primaryTeam: null,
         registeredTeam: null,
         membershipType,
-        cancelledAt,
+        cancelledAt: cancelledAt ? toPlainDateTime(cancelledAt) : null,
       });
-      const inserted = result.rows[0]?.inserted;
-      if (inserted) {
-        created++;
-      } else {
-        updated++;
-      }
+      upserted++;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`  Error upserting club membership for ${user.email} (${season}): ${message}`);
@@ -277,8 +299,10 @@ async function main(): Promise<void> {
   await pool.end();
 
   console.log(
-    `\nDone. Club plans: ${clubPlansFound}, Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors}`
+    `\nDone. Club plans: ${clubPlansFound}, Upserted: ${upserted}, Skipped: ${skipped}, Errors: ${errors}`
   );
 }
 
-main();
+if (isMainModule(import.meta.url)) {
+  void main();
+}

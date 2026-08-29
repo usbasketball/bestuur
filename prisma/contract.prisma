@@ -38,20 +38,21 @@ enum ClubMembershipType {
   RECREATIONAL
 }
 
-model CompetitionTeam {
-  id          String     @id @default(uuid())
-  foysTeamId  Int        @unique @map("foys_team_id")
-  name        String?
-  season      String
-  teamType    TeamType   @map("team_type")
-  discipline  Discipline @default(DISCIPLINE_5x5)
+model Team {
+  id                     String     @id @default(uuid())
+  foysCompetitionTeamId  Int        @unique @map("foys_competition_team_id")
+  foysTeamId             Int?       @unique @map("foys_team_id")
+  name                   String?
+  season                 String
+  teamType               TeamType   @map("team_type")
+  discipline             Discipline @default(DISCIPLINE_5x5)
 
-  createdAt   Timestamp  @default(now()) @map("created_at")
-  updatedAt   temporal.updatedAt() @map("updated_at")
+  createdAt              Timestamp  @default(now()) @map("created_at")
+  updatedAt              temporal.updatedAt() @map("updated_at")
 
   @@index([teamType])
   @@index([season])
-  @@map("competition_teams")
+  @@map("teams")
 }
 
 model InterestSubmission {

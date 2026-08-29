@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # contract.json / contract.d.ts are gitignored and imported by the tests,
+      # so generate them before typechecking/testing.
+      - name: Generate Prisma contract artifacts
+        run: npm run contract:emit
+
+      # LayoutProps etc. live in .next/types, which is gitignored and normally
+      # produced by `next dev`/`next build`. Generate them so `tsc` passes on a
+      # fresh clone without a full build.
+      - name: Generate route types
+        run: npx next typegen
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run unit tests
+        run: npm test

@@ -37,8 +37,8 @@ export default async function MatchesPage({ params, searchParams }: Props) {
     redirect(`/dashboard/matches?season=${season}`);
   }
 
-  const homeTeams = await db.orm.public.CompetitionTeam.select(
-    "foysTeamId",
+  const homeTeams = await db.orm.public.Team.select(
+    "foysCompetitionTeamId",
     "name",
     "teamType",
   )
@@ -46,7 +46,7 @@ export default async function MatchesPage({ params, searchParams }: Props) {
     .all();
 
   const homeTeamByFoysId = new Map(
-    homeTeams.map((t) => [t.foysTeamId, t.name ?? t.teamType] as const),
+    homeTeams.map((t) => [t.foysCompetitionTeamId, t.name ?? t.teamType] as const),
   );
 
   const matches = await db.orm.public.Match.select(

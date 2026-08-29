@@ -17,12 +17,17 @@
 //   AUTH0_M2M_CLIENT_SECRET   M2M app client secret
 //   FOYS_API_KEY              Foys bearer token
 
-import { Pool, QueryResult } from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
 import dotenv from "dotenv";
-import { REFEREE_LEVELS, TAG_CODE_TO_LEVEL } from "../lib/types";
+import { Pool } from "pg";
+import "temporal-polyfill/full/global";
+import postgres from "@prisma/orm-postgres/runtime";
+import type { Contract } from "../prisma/contract.d";
+import contractJson from "../prisma/contract.json";
+import { REFEREE_LEVELS, TAG_CODE_TO_LEVEL, toPlainDateTime } from "../lib/types";
+import { isMainModule } from "../lib/is-main";
 
 const dryRun = !process.argv.includes("--live");
 
@@ -36,19 +41,21 @@ const AUTH0_M2M_CLIENT_ID = process.env.AUTH0_M2M_CLIENT_ID;
 const AUTH0_M2M_CLIENT_SECRET = process.env.AUTH0_M2M_CLIENT_SECRET;
 const FOYS_API_KEY = process.env.FOYS_API_KEY;
 
-if (!DATABASE_URL) {
-  console.error("Missing DATABASE_URL env var.");
-  process.exit(1);
-}
+function validateEnv(): void {
+  if (!DATABASE_URL) {
+    console.error("Missing DATABASE_URL env var.");
+    process.exit(1);
+  }
 
-if (!AUTH0_M2M_DOMAIN || !AUTH0_M2M_CLIENT_ID || !AUTH0_M2M_CLIENT_SECRET) {
-  console.error("Missing AUTH0_M2M_DOMAIN, AUTH0_M2M_CLIENT_ID, or AUTH0_M2M_CLIENT_SECRET env vars.");
-  process.exit(1);
-}
+  if (!AUTH0_M2M_DOMAIN || !AUTH0_M2M_CLIENT_ID || !AUTH0_M2M_CLIENT_SECRET) {
+    console.error("Missing AUTH0_M2M_DOMAIN, AUTH0_M2M_CLIENT_ID, or AUTH0_M2M_CLIENT_SECRET env vars.");
+    process.exit(1);
+  }
 
-if (!FOYS_API_KEY) {
-  console.error("Missing FOYS_API_KEY env var.");
-  process.exit(1);
+  if (!FOYS_API_KEY) {
+    console.error("Missing FOYS_API_KEY env var.");
+    process.exit(1);
+  }
 }
 
 // ── FOYS API ──────────────────────────────────────────────────────────────────
@@ -77,7 +84,7 @@ interface FoysMemberDetail {
   memberSince: string | null;
 }
 
-async function fetchMemberDetail(guid: string): Promise<FoysMemberDetail | null> {
+export async function fetchMemberDetail(guid: string): Promise<FoysMemberDetail | null> {
   const res = await fetch(`${FOYS_API}/${guid}`, {
     headers: {
       Accept: "application/json",
@@ -89,7 +96,7 @@ async function fetchMemberDetail(guid: string): Promise<FoysMemberDetail | null>
   return (await res.json()) as FoysMemberDetail;
 }
 
-async function fetchAllFoysMembers(): Promise<FoysMembersResponse> {
+export async function fetchAllFoysMembers(): Promise<FoysMembersResponse> {
   const allMembers = [];
   let skip = 0;
   let totalCount = Infinity;
@@ -128,7 +135,7 @@ async function fetchAllFoysMembers(): Promise<FoysMembersResponse> {
   return { totalCount, items: allMembers };
 }
 
-async function fetchRefereeLevel(nbbNumber: string): Promise<string | null> {
+export async function fetchRefereeLevel(nbbNumber: string): Promise<string | null> {
   const url = `${FOYS_TAGS_API}/${nbbNumber}/tag-type/3?federationMembershipIdentifier=${nbbNumber}&activeOnly=true&tagType=3`;
   const res = await fetch(url, {
     headers: {
@@ -165,7 +172,7 @@ interface Auth0TokenResponse {
   access_token: string;
 }
 
-async function getToken(): Promise<string> {
+export async function getToken(): Promise<string> {
   const res = await fetch(`https://${AUTH0_M2M_DOMAIN}/oauth/token`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -188,7 +195,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function mgmtFetch(apiPath: string, options: RequestInit = {}, retries = 3): Promise<unknown> {
+export async function mgmtFetch(apiPath: string, options: RequestInit = {}, retries = 3): Promise<unknown> {
   if (!accessToken) accessToken = await getToken();
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -227,7 +234,7 @@ interface Auth0UsersResponse {
   users: Auth0User[];
 }
 
-async function fetchAllAuth0Users(): Promise<Auth0User[]> {
+export async function fetchAllAuth0Users(): Promise<Auth0User[]> {
   const allUsers: Auth0User[] = [];
   let page = 0;
   const perPage = 100;
@@ -273,26 +280,40 @@ interface UpsertUserParams {
   foysUserId: string | null;
   auth0Sub: string | null;
   refereeLevel: string | null;
-  memberSince: Date | null;
+  memberSince: Temporal.PlainDateTime | null;
 }
 
-async function upsertUser(pool: Pool, { email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel, memberSince }: UpsertUserParams): Promise<QueryResult> {
-  const query = `
-    INSERT INTO users (id, email, first_name, last_name_prefix, last_name, nbb_number, foys_user_id, auth0_sub, referee_level, member_since, created_at, updated_at)
-    VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, now(), now())
-    ON CONFLICT (email) DO UPDATE SET
-      first_name = EXCLUDED.first_name,
-      last_name_prefix = EXCLUDED.last_name_prefix,
-      last_name = EXCLUDED.last_name,
-      nbb_number = COALESCE(EXCLUDED.nbb_number, users.nbb_number),
-      foys_user_id = COALESCE(EXCLUDED.foys_user_id, users.foys_user_id),
-      auth0_sub = COALESCE(EXCLUDED.auth0_sub, users.auth0_sub),
-      referee_level = COALESCE(EXCLUDED.referee_level, users.referee_level),
-      member_since = COALESCE(EXCLUDED.member_since, users.member_since),
-      updated_at = now()
-    RETURNING id, (xmax = 0) AS inserted
-  `;
-  return pool.query(query, [email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel, memberSince]);
+type UserDb = ReturnType<typeof postgres<Contract>>;
+
+export async function upsertUser(db: UserDb, { email, firstName, lastNamePrefix, lastName, nbbNumber, foysUserId, auth0Sub, refereeLevel, memberSince }: UpsertUserParams): Promise<void> {
+  // The raw SQL version only overwrote a value when the incoming value was
+  // non-null (COALESCE(EXCLUDED.x, users.x)); preserve that by only writing
+  // non-null fields on update.
+  const update: Record<string, unknown> = {};
+  if (firstName != null) update.firstName = firstName;
+  if (lastNamePrefix != null) update.lastNamePrefix = lastNamePrefix;
+  if (lastName != null) update.lastName = lastName;
+  if (nbbNumber != null) update.nbbNumber = nbbNumber;
+  if (foysUserId != null) update.foysUserId = foysUserId;
+  if (auth0Sub != null) update.auth0Sub = auth0Sub;
+  if (refereeLevel != null) update.refereeLevel = refereeLevel;
+  if (memberSince != null) update.memberSince = memberSince;
+
+  await db.orm.public.User.upsert({
+    create: {
+      email,
+      firstName,
+      lastNamePrefix,
+      lastName,
+      nbbNumber,
+      foysUserId,
+      auth0Sub,
+      refereeLevel,
+      memberSince,
+    },
+    update,
+    conflictOn: { email },
+  });
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
@@ -308,7 +329,7 @@ interface SplitNameResult {
   lastName: string | null;
 }
 
-function splitName(member: FoysMember): SplitNameResult {
+export function splitName(member: FoysMember): SplitNameResult {
   const fullName = (member.fullName || "").trim();
   if (!fullName) return { firstName: null, lastNamePrefix: null, lastName: null };
 
@@ -332,6 +353,8 @@ function splitName(member: FoysMember): SplitNameResult {
 }
 
 async function main(): Promise<void> {
+  validateEnv();
+
   if (dryRun) {
     console.log("=== DRY RUN (no database writes) ===\n");
   }
@@ -362,9 +385,9 @@ async function main(): Promise<void> {
 
   // 3. Connect to database
   const pool = new Pool({ connectionString: DATABASE_URL });
+  const db = postgres<Contract>({ contractJson, pg: pool });
 
-  let created = 0;
-  let updated = 0;
+  let upserted = 0;
   let skipped = 0;
   let errors = 0;
   const personDetailSamples: { guid: string; detail: FoysMemberDetail }[] = [];
@@ -412,7 +435,7 @@ async function main(): Promise<void> {
     }
 
     try {
-      const result = await upsertUser(pool, {
+      await upsertUser(db, {
         email,
         firstName,
         lastNamePrefix,
@@ -421,16 +444,10 @@ async function main(): Promise<void> {
         foysUserId,
         auth0Sub,
         refereeLevel,
-        memberSince,
+        memberSince: memberSince ? toPlainDateTime(memberSince) : null,
       });
-      const inserted = result.rows[0]?.inserted;
-      if (inserted) {
-        console.log(`Created: ${member.fullName} (${email})`);
-        created++;
-      } else {
-        console.log(`Updated: ${member.fullName} (${email})`);
-        updated++;
-      }
+      console.log(`Upserted: ${member.fullName} (${email})`);
+      upserted++;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error(`Error for ${member.fullName} (${email}): ${message}`);
@@ -445,8 +462,10 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `\nDone. Created: ${created}, Updated: ${updated}, Skipped: ${skipped}, Errors: ${errors}`
+    `\nDone. Upserted: ${upserted}, Skipped: ${skipped}, Errors: ${errors}`
   );
 }
 
-main();
+if (isMainModule(import.meta.url)) {
+  void main();
+}
