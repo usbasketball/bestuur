@@ -34,6 +34,7 @@
     "tabs": {
       "members": "Members",
       "teams": "Competition Teams",
+      "coaches": "Coaches",
       "matches": "Matches"
     },
     "members": {
@@ -70,6 +71,17 @@
         "foysTeamId": "FOYS ID"
       },
       "openInFoys": "Open in FOYS"
+    },
+    "coaches": {
+      "title": "Coaches",
+      "count": "{count, plural, =0 {No coaches} one {# coach} other {# coaches}}",
+      "columns": {
+        "team": "Team",
+        "name": "Name",
+        "email": "Email",
+        "nbb": "NBB #",
+        "season": "Season"
+      }
     },
     "matches": {
       "title": "Home Matches",

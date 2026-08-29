@@ -34,6 +34,7 @@
     "tabs": {
       "members": "Leden",
       "teams": "Competitieteams",
+      "coaches": "Coaches",
       "matches": "Wedstrijden"
     },
     "members": {
@@ -70,6 +71,17 @@
         "foysTeamId": "FOYS ID"
       },
       "openInFoys": "Openen in FOYS"
+    },
+    "coaches": {
+      "title": "Coaches",
+      "count": "{count, plural, =0 {Geen coaches} one {# coach} other {# coaches}}",
+      "columns": {
+        "team": "Team",
+        "name": "Naam",
+        "email": "E-mail",
+        "nbb": "NBB nr.",
+        "season": "Seizoen"
+      }
     },
     "matches": {
       "title": "Thuis Wedstrijden",

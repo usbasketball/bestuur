@@ -113,6 +113,7 @@ model User {
   memberSince       Timestamp? @map("member_since")
 
   memberships       ClubMembership[]
+  coaches           Coach[]
 
   createdAt         Timestamp  @default(now()) @map("created_at")
   updatedAt         temporal.updatedAt() @map("updated_at")
@@ -137,4 +138,19 @@ model ClubMembership {
   @@unique([userId, season])
   @@index([season])
   @@map("club_memberships")
+}
+
+model Coach {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  team      TeamType
+  season    String
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt Timestamp @default(now()) @map("created_at")
+  updatedAt temporal.updatedAt() @map("updated_at")
+
+  @@index([season])
+  @@map("coaches")
 }

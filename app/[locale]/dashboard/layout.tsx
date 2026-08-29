@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { Users, Trophy, Shield, LogOut } from "lucide-react";
+import { Users, Trophy, Shield, GraduationCap, LogOut } from "lucide-react";
 import Image from "next/image";
 
 type Props = {
@@ -18,6 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const TABS = [
   { key: "members", href: "/dashboard/members", icon: Users },
   { key: "teams", href: "/dashboard/teams", icon: Shield },
+  { key: "coaches", href: "/dashboard/coaches", icon: GraduationCap },
   { key: "matches", href: "/dashboard/matches", icon: Trophy },
 ] as const;
 
