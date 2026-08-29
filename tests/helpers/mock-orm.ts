@@ -63,6 +63,7 @@ export interface MockDb {
       Match: ReturnType<typeof modelStub>;
       ClubMembership: ReturnType<typeof modelStub>;
       Coach: ReturnType<typeof modelStub>;
+      Committee: ReturnType<typeof modelStub>;
     };
   };
 }
@@ -76,6 +77,7 @@ export function createMockDb(rowsByModel: Partial<Record<keyof MockDb["orm"]["pu
         Match: modelStub(rowsByModel.Match ?? []),
         ClubMembership: modelStub(rowsByModel.ClubMembership ?? []),
         Coach: modelStub(rowsByModel.Coach ?? []),
+        Committee: modelStub(rowsByModel.Committee ?? []),
       },
     },
   };

@@ -34,7 +34,7 @@
     "tabs": {
       "members": "Members",
       "teams": "Competition Teams",
-      "coaches": "Coaches",
+      "activeMembers": "Active Members",
       "matches": "Matches"
     },
     "members": {
@@ -73,9 +73,9 @@
       },
       "openInFoys": "Open in FOYS"
     },
-    "coaches": {
-      "title": "Coaches",
-      "count": "{count, plural, =0 {No coaches} one {# coach} other {# coaches}}",
+    "activeMembers": {
+      "title": "Active Members",
+      "count": "{count, plural, =0 {No active members} one {# active member} other {# active members}}",
       "columns": {
         "team": "Team",
         "name": "Name",

@@ -34,7 +34,7 @@
     "tabs": {
       "members": "Leden",
       "teams": "Competitieteams",
-      "coaches": "Coaches",
+      "activeMembers": "Actieve leden",
       "matches": "Wedstrijden"
     },
     "members": {
@@ -73,9 +73,9 @@
       },
       "openInFoys": "Openen in FOYS"
     },
-    "coaches": {
-      "title": "Coaches",
-      "count": "{count, plural, =0 {Geen coaches} one {# coach} other {# coaches}}",
+    "activeMembers": {
+      "title": "Actieve leden",
+      "count": "{count, plural, =0 {Geen actieve leden} one {# actief lid} other {# actieve leden}}",
       "columns": {
         "team": "Team",
         "name": "Naam",

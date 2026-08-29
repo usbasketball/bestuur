@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 const TABS = [
   { key: "members", href: "/dashboard/members", icon: Users },
   { key: "teams", href: "/dashboard/teams", icon: Shield },
-  { key: "coaches", href: "/dashboard/coaches", icon: GraduationCap },
+  { key: "activeMembers", href: "/dashboard/active-members", icon: GraduationCap },
   { key: "matches", href: "/dashboard/matches", icon: Trophy },
 ] as const;
 

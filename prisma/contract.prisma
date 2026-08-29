@@ -38,6 +38,15 @@ enum ClubMembershipType {
   RECREATIONAL
 }
 
+enum CommitteeType {
+  BOARD_CHAIRPERSON
+  BOARD_SECRETARY
+  BOARD_TREASURER
+  BOARD_GAME_SECRETARY
+  BOARD_GENERAL_MEMBER
+  OMNI
+}
+
 model Team {
   id                     String     @id @default(uuid())
   foysCompetitionTeamId  Int        @unique @map("foys_competition_team_id")
@@ -114,6 +123,7 @@ model User {
 
   memberships       ClubMembership[]
   coaches           Coach[]
+  committees        Committee[]
 
   createdAt         Timestamp  @default(now()) @map("created_at")
   updatedAt         temporal.updatedAt() @map("updated_at")
@@ -153,4 +163,19 @@ model Coach {
 
   @@index([season])
   @@map("coaches")
+}
+
+model Committee {
+  id        String         @id @default(uuid())
+  userId    String         @map("user_id")
+  type      CommitteeType
+  season    String
+
+  user      User           @relation(fields: [userId], references: [id])
+
+  createdAt Timestamp      @default(now()) @map("created_at")
+  updatedAt temporal.updatedAt() @map("updated_at")
+
+  @@index([season])
+  @@map("committees")
 }

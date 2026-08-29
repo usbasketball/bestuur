@@ -10,7 +10,7 @@ export default async function CoachesPage({ params }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const t = await getTranslations("Dashboard.coaches");
+  const t = await getTranslations("Dashboard.activeMembers");
 
   const coaches = await db.orm.public.Coach.select("id", "team", "season")
     .include("user", (u) =>
