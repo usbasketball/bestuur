@@ -2,7 +2,9 @@ import { setRequestLocale } from "next-intl/server";
 import { getTranslations } from "next-intl/server";
 import { Activity, Disc, ExternalLink } from "lucide-react";
 import { db } from "@/lib/db";
-import { foysMemberUrl } from "@/lib/types";
+import { foysMemberUrl, SEASONS } from "@/lib/types";
+
+const CURRENT_SEASON = SEASONS[0];
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -27,7 +29,7 @@ export default async function MembersPage({ params }: Props) {
   )
     .include("memberships", (m) =>
       m
-        .where((x) => x.season.eq("2026-2027"))
+        .where((x) => x.season.eq(CURRENT_SEASON))
         .select("membershipType"),
     )
     .orderBy([(u) => u.lastName.asc(), (u) => u.firstName.asc()])
