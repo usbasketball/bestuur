@@ -48,6 +48,7 @@ function whereChain(rows: Rows): Pick<Chain, "all" | "first" | "update"> {
 
 function modelStub(rows: Rows) {
   return {
+    create: vi.fn(async () => ({})),
     upsert: vi.fn(async () => ({})),
     select: vi.fn(() => selectChain(rows)),
     where: vi.fn(() => whereChain(rows)),
@@ -61,6 +62,8 @@ export interface MockDb {
       User: ReturnType<typeof modelStub>;
       Match: ReturnType<typeof modelStub>;
       ClubMembership: ReturnType<typeof modelStub>;
+      Coach: ReturnType<typeof modelStub>;
+      Committee: ReturnType<typeof modelStub>;
     };
   };
 }
@@ -73,6 +76,8 @@ export function createMockDb(rowsByModel: Partial<Record<keyof MockDb["orm"]["pu
         User: modelStub(rowsByModel.User ?? []),
         Match: modelStub(rowsByModel.Match ?? []),
         ClubMembership: modelStub(rowsByModel.ClubMembership ?? []),
+        Coach: modelStub(rowsByModel.Coach ?? []),
+        Committee: modelStub(rowsByModel.Committee ?? []),
       },
     },
   };

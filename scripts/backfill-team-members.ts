@@ -13,15 +13,17 @@
 //   npm run backfill:team-members                                    # dry run (default)
 //   npm run backfill:team-members -- --live                          # actually POST
 //   npm run backfill:team-members -- --team 68464 --members d4b90dd9-2493-4699-9eeb-16afedc51a39
+//   npm run backfill:team-members -- --role coach ...                 # backfill coaches
 //   npm run backfill:team-members -- --team 68464 --members id1,id2 --start 2026-08-01 --team-role 2182
 //   npm run backfill:team-members -- --end 2027-07-31                # also set an end date
 //
 // Options (defaults match a specific backfill run):
 //   --team <id>          FOYS team id (default: 68464)
 //   --members <ids>      comma-separated FOYS user ids (default: d4b90dd9-2493-4699-9eeb-16afedc51a39)
+//   --role <role>        team role: "player" (default) or "coach"
 //   --start <date>       membership start date YYYY-MM-DD (default: 2026-08-01)
 //   --end <date>         membership end date YYYY-MM-DD (optional)
-//   --team-role <id>     FOYS team role id (default: 2182)
+//   --team-role <id>     FOYS team role id (overrides --role; default: 2182, coach 4237)
 //
 // Required env vars (in .env.local / .env):
 //   FOYS_API_KEY   Foys bearer token
@@ -39,11 +41,17 @@ function getArg(name: string): string | undefined {
   return idx !== -1 ? args[idx + 1] : undefined;
 }
 
+const TEAM_ROLES = { player: 2182, coach: 4237 } as const;
+type TeamRoleName = keyof typeof TEAM_ROLES;
+
+const roleArg = getArg("--role");
+const role: TeamRoleName = roleArg === "coach" ? "coach" : "player";
+
 const teamId = Number(getArg("--team") ?? "68464");
 const membersArg = getArg("--members") ?? "d4b90dd9-2493-4699-9eeb-16afedc51a39";
 const start = getArg("--start") ?? "2026-08-01";
 const end = getArg("--end") ?? "2027-07-31";
-const teamRoleId = Number(getArg("--team-role") ?? "2182");
+const teamRoleId = Number(getArg("--team-role") ?? TEAM_ROLES[role]);
 
 const memberIds = membersArg
   .split(",")
@@ -126,7 +134,7 @@ async function main(): Promise<void> {
     ...(end ? { end } : {}),
   };
 
-  console.log(`Team ${teamId}, role ${teamRoleId}, start ${start}${end ? `, end ${end}` : ""}, members: ${memberIds.join(", ")}\n`);
+  console.log(`Team ${teamId}, role ${role} (${teamRoleId}), start ${start}${end ? `, end ${end}` : ""}, members: ${memberIds.join(", ")}\n`);
 
   if (dryRun) {
     console.log("=== DRY RUN (no request sent) ===\n");
@@ -136,11 +144,11 @@ async function main(): Promise<void> {
     return;
   }
 
-  saveArtifact(`${teamId}.request.json`, request);
+  saveArtifact(`${teamId}.${role}.request.json`, request);
 
   try {
     const result = await bulkAddTeamMembers(request);
-    saveArtifact(`${teamId}.response.json`, result);
+    saveArtifact(`${teamId}.${role}.response.json`, result);
     console.log(`Backfill done: ${result ? JSON.stringify(result) : "no response body"}`);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

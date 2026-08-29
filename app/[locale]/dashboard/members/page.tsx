@@ -1,6 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
 import { getTranslations } from "next-intl/server";
-import { Activity, Disc, ExternalLink } from "lucide-react";
+import { Check, ExternalLink } from "lucide-react";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { CLUB_MEMBERSHIP_TYPES, foysMemberUrl, SEASONS, TEAM_TYPES } from "@/lib/types";
@@ -45,6 +45,9 @@ export default async function MembersPage({ params, searchParams }: Props) {
       m
         .where((x) => x.season.eq(CURRENT_SEASON))
         .select("membershipType", "primaryTeam"),
+    )
+    .include("coaches", (c) =>
+      c.where((x) => x.season.eq(CURRENT_SEASON)).select("team"),
     )
     .orderBy([(u) => u.firstName.asc()])
     .all();
@@ -95,11 +98,17 @@ export default async function MembersPage({ params, searchParams }: Props) {
           <thead>
             <tr className="border-b border-line text-xs uppercase tracking-wider text-ink-muted">
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium" aria-label={t("openInFoys")} />
-              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.membershipType")}</th>
+              <th
+                className="sticky top-0 bg-white pb-3 pr-4 font-medium"
+                title={t("membershipTypes.COMPETITION")}
+              >
+                {t("columns.membershipType")}
+              </th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.primaryTeam")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.name")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.email")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.nbb")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.coachedTeam")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.refereeLevel")}</th>
               <th className="sticky top-0 bg-white pb-3 font-medium">{t("columns.memberSince")}</th>
             </tr>
@@ -127,21 +136,12 @@ export default async function MembersPage({ params, searchParams }: Props) {
                   <td className="py-3 pr-4">
                     {membershipType === "COMPETITION" && (
                       <span title={t("membershipTypes.COMPETITION")}>
-                        <Disc
+                        <Check
                           className="h-4 w-4 text-accent"
                           aria-label={t("membershipTypes.COMPETITION")}
                         />
                       </span>
                     )}
-                    {membershipType === "RECREATIONAL" && (
-                      <span title={t("membershipTypes.RECREATIONAL")}>
-                        <Activity
-                          className="h-4 w-4 text-ink-muted"
-                          aria-label={t("membershipTypes.RECREATIONAL")}
-                        />
-                      </span>
-                    )}
-                    {!membershipType && <span aria-hidden="true">—</span>}
                   </td>
                   <td className="py-3 pr-4 font-mono text-ink">
                     {primaryTeam ?? "—"}
@@ -154,6 +154,11 @@ export default async function MembersPage({ params, searchParams }: Props) {
                   <td className="py-3 pr-4 text-ink-muted">{user.email}</td>
                   <td className="py-3 pr-4 font-mono text-xs text-ink-muted">
                     {user.nbbNumber ?? "—"}
+                  </td>
+                  <td className="py-3 pr-4 font-mono text-ink">
+                    {user.coaches.length > 0
+                      ? user.coaches.map((c) => c.team).join(", ")
+                      : "—"}
                   </td>
                   <td className="py-3 pr-4 text-ink-muted">
                     {user.refereeLevel ?? "—"}

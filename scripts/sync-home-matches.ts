@@ -27,7 +27,7 @@ import "temporal-polyfill/full/global";
 import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "../prisma/contract.d";
 import contractJson from "../prisma/contract.json";
-import { mapFieldType, mapMatchStatus } from "../lib/types";
+import { mapFieldType, mapMatchStatus, toPlainDateTimeFromIso } from "../lib/types";
 import { isMainModule } from "../lib/is-main";
 
 const dryRun = !process.argv.includes("--live");
@@ -353,7 +353,7 @@ async function main(): Promise<void> {
         await upsertMatch(db, {
           foysMatchId: match.id,
           status: mapMatchStatus(match.status)!,
-          date: Temporal.PlainDateTime.from(match.date),
+          date: toPlainDateTimeFromIso(match.date),
           startTime: match.startTime,
           isFriendly: match.isFriendly,
           homeScore: match.homeScore,
