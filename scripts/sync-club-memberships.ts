@@ -13,8 +13,11 @@
 // 5. Also fetches each general team's active members (from the local teams
 //    table, identified by foys_team_id) and derives each member's primary_team
 //    per season from the team members endpoint. First team wins when a member
-//    appears in multiple teams in the same season.
+//    appears in multiple teams in the same season. Coach-role members are
+//    excluded: their team is synced into the coaches table instead (step 7).
 // 6. Upserts a membership per (user, season) into the club_memberships table
+// 7. Upserts a coach per (user, team, season) into the coaches table for team
+//    roster entries whose FOYS team role is the coach role (id 4237).
 //
 // Usage:
 //   npm run sync:club-memberships           # dry run (default)
@@ -95,6 +98,9 @@ const FOYS_TEAM_MEMBERS_API = (teamId: number) =>
   `https://api.foys.io/foys/api/v1/management/teams/${teamId}/members`;
 const TEAM_MEMBERS_PAGE_SIZE = 30;
 
+// FOYS team role id for the "Coach" role (name "Coach", code "CO").
+const COACH_TEAM_ROLE_ID = 4237;
+
 interface FoysTeamMembersResponse {
   totalCount: number;
   items: FoysTeamMember[];
@@ -108,6 +114,7 @@ interface FoysTeamMember {
   start: string | null;
   end: string | null;
   teamRole?: {
+    id?: number | null;
     isPlayer?: boolean | null;
     code?: string | null;
     name?: string | null;
@@ -282,6 +289,8 @@ export function buildPrimaryTeamMap(
     const members = membersByTeam.get(team.foysTeamId) ?? [];
     for (const member of members) {
       if (!member.personId) continue;
+      // Coaches are synced into the coaches table, not into primary_team.
+      if (member.teamRole?.id === COACH_TEAM_ROLE_ID) continue;
       const season = seasonFromDates(member.start, member.end);
       if (!season) continue;
       const key = `${member.personId}|${season}`;
@@ -292,6 +301,46 @@ export function buildPrimaryTeamMap(
   }
 
   return primaryTeamMap;
+}
+
+// ── coaches (team roster) ─────────────────────────────────────────────────────
+
+interface CoachAssignment {
+  personId: string;
+  season: string;
+  teamType: TeamType;
+}
+
+// Build coach assignments from per-team member lists: `${personId}` who is on a
+// team roster under the coach role (FOYS teamRole id 4237), for the season
+// derived from the roster dates. Tolerates null/unknown team types by skipping
+// them. A person may coach multiple teams within a season.
+export function buildCoachAssignments(
+  teams: { foysTeamId: number; teamType: TeamType; season: string; name: string | null }[],
+  membersByTeam: Map<number, FoysTeamMember[]>,
+): CoachAssignment[] {
+  const assignments: CoachAssignment[] = [];
+  for (const team of teams) {
+    const members = membersByTeam.get(team.foysTeamId) ?? [];
+    for (const member of members) {
+      if (member.teamRole?.id !== COACH_TEAM_ROLE_ID) continue;
+      if (!member.personId) continue;
+      const season = seasonFromDates(member.start, member.end);
+      if (!season) continue;
+      assignments.push({ personId: member.personId, season, teamType: team.teamType });
+    }
+  }
+  return assignments;
+}
+
+interface DbCoachRow {
+  userId: string;
+  team: TeamType;
+  season: string;
+}
+
+export async function queryCoaches(db: Db): Promise<DbCoachRow[]> {
+  return db.orm.public.Coach.select("userId", "team", "season").all();
 }
 
 // ── Plan selection ────────────────────────────────────────────────────────────
@@ -482,6 +531,47 @@ async function main(): Promise<void> {
     }
   }
 
+  // 3. Sync coaches from the team rosters into the coaches table. Rows are
+  //    added when missing; existing (user, team, season) rows are untouched.
+  console.log("\nSyncing coaches from team rosters...");
+  const coachAssignments = buildCoachAssignments(teams, membersByTeam);
+  const userIdByFoysId = new Map(
+    users
+      .filter((u) => u.foys_user_id != null)
+      .map((u) => [u.foys_user_id as string, u.id]),
+  );
+  const existingCoachKeys = new Set(
+    (await queryCoaches(db)).map((c) => `${c.userId}|${c.team}|${c.season}`),
+  );
+
+  let coachesSynced = 0;
+  let coachesSkipped = 0;
+  for (const { personId, season, teamType } of coachAssignments) {
+    const userId = userIdByFoysId.get(personId);
+    if (!userId) {
+      console.warn(`  Coach ${personId} (${teamType}, ${season}) has no local user — skipped`);
+      coachesSkipped++;
+      continue;
+    }
+    const key = `${userId}|${teamType}|${season}`;
+    if (existingCoachKeys.has(key)) {
+      continue;
+    }
+    if (dryRun) {
+      console.log(`Would sync coach: ${personId} → ${teamType} (${season})`);
+      coachesSynced++;
+      continue;
+    }
+    try {
+      await db.orm.public.Coach.create({ userId, team: teamType, season });
+      coachesSynced++;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`  Error syncing coach ${personId} (${teamType}, ${season}): ${message}`);
+      errors++;
+    }
+  }
+
   await pool.end();
 
   console.log(
@@ -489,6 +579,9 @@ async function main(): Promise<void> {
   );
   console.log(
     `Team members: ${teams.length} teams, ${teamErrors} fetch errors, primary_team set: ${primaryTeamsSet}, no-membership warnings: ${unmappedMemberships}`
+  );
+  console.log(
+    `Coaches: ${coachAssignments.length} assignments, ${coachesSynced} synced, ${coachesSkipped} skipped without a local user`
   );
 }
 

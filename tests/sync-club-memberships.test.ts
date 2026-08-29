@@ -8,6 +8,8 @@ import {
   queryUsers,
   queryTeamsWithFoysId,
   buildPrimaryTeamMap,
+  buildCoachAssignments,
+  queryCoaches,
   upsertClubMembership,
 } from "../scripts/sync-club-memberships";
 import { jsonResponse, errorResponse, mockFetch } from "./helpers/mock-fetch";
@@ -210,6 +212,72 @@ describe("buildPrimaryTeamMap", () => {
     const map = buildPrimaryTeamMap(teams, membersByTeam as never);
     expect(map.size).toBe(0);
   });
+
+  it("excludes coach-role members from primary_team", () => {
+    const membersByTeam = new Map<number, unknown[]>([
+      [68465, [
+        { personId: "g-1", end: "2027-07-31", teamRole: { id: 4237 } },
+        { personId: "g-2", end: "2027-07-31", teamRole: { id: 2182 } },
+      ]],
+    ]);
+    const map = buildPrimaryTeamMap(teams, membersByTeam as never);
+    expect(map.has("g-1|2026-2027")).toBe(false);
+    expect(map.get("g-2|2026-2027")).toBe("VSE1");
+  });
+});
+
+describe("buildCoachAssignments", () => {
+  const teams = [
+    { foysTeamId: 68465, teamType: "VSE1" as const, season: "2026-2027", name: "D1" },
+    { foysTeamId: 68470, teamType: "MSE1" as const, season: "2026-2027", name: "H1" },
+  ];
+
+  it("maps coach-role members to their team", () => {
+    const membersByTeam = new Map<number, unknown[]>([
+      [68465, [{ personId: "g-1", end: "2027-07-31", teamRole: { id: 4237 } }]],
+    ]);
+    const assignments = buildCoachAssignments(teams, membersByTeam as never);
+    expect(assignments).toEqual([
+      { personId: "g-1", season: "2026-2027", teamType: "VSE1" },
+    ]);
+  });
+
+  it("maps active coaches (null end) via their start date", () => {
+    const membersByTeam = new Map<number, unknown[]>([
+      [68470, [{ personId: "g-1", start: "2026-08-01", end: null, teamRole: { id: 4237 } }]],
+    ]);
+    const assignments = buildCoachAssignments(teams, membersByTeam as never);
+    expect(assignments).toEqual([
+      { personId: "g-1", season: "2026-2027", teamType: "MSE1" },
+    ]);
+  });
+
+  it("skips non-coach roles", () => {
+    const membersByTeam = new Map<number, unknown[]>([
+      [68465, [{ personId: "g-1", end: "2027-07-31", teamRole: { id: 2182 } }]],
+    ]);
+    expect(buildCoachAssignments(teams, membersByTeam as never)).toEqual([]);
+  });
+
+  it("keeps a person who coaches multiple teams in a season", () => {
+    const membersByTeam = new Map<number, unknown[]>([
+      [68465, [{ personId: "g-1", end: "2027-07-31", teamRole: { id: 4237 } }]],
+      [68470, [{ personId: "g-1", end: "2027-07-31", teamRole: { id: 4237 } }]],
+    ]);
+    const assignments = buildCoachAssignments(teams, membersByTeam as never);
+    expect(assignments).toHaveLength(2);
+    expect(assignments.map((a) => a.teamType)).toEqual(["VSE1", "MSE1"]);
+  });
+
+  it("skips members without a personId or usable dates", () => {
+    const membersByTeam = new Map<number, unknown[]>([
+      [68465, [
+        { personId: null, end: "2027-07-31", teamRole: { id: 4237 } },
+        { personId: "g-2", end: null, teamRole: { id: 4237 } },
+      ]],
+    ]);
+    expect(buildCoachAssignments(teams, membersByTeam as never)).toEqual([]);
+  });
 });
 
 describe("queryTeamsWithFoysId", () => {
@@ -242,6 +310,23 @@ describe("queryUsers", () => {
       { id: "u-2", foys_user_id: null, email: "b@x.nl" },
     ]);
     expect(db.orm.public.User.select).toHaveBeenCalledWith("id", "foysUserId", "email");
+  });
+});
+
+describe("queryCoaches", () => {
+  it("selects userId, team and season for all coach rows", async () => {
+    const db = createMockDb({
+      Coach: [
+        { userId: "u-1", team: "VSE6", season: "2026-2027" },
+        { userId: "u-2", team: "VSE4", season: "2026-2027" },
+      ],
+    });
+    const rows = await queryCoaches(asDb(db));
+    expect(rows).toEqual([
+      { userId: "u-1", team: "VSE6", season: "2026-2027" },
+      { userId: "u-2", team: "VSE4", season: "2026-2027" },
+    ]);
+    expect(db.orm.public.Coach.select).toHaveBeenCalledWith("userId", "team", "season");
   });
 });
 
