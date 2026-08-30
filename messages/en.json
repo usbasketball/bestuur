@@ -35,7 +35,8 @@
       "members": "Members",
       "teams": "Competition Teams",
       "activeMembers": "Active Members",
-      "matches": "Matches"
+      "matches": "Matches",
+      "tasks": "Tasks"
     },
     "members": {
       "title": "Members",
@@ -58,11 +59,15 @@
         "label": "Team type",
         "all": "All teams"
       },
-      "openInFoys": "Open in FOYS"
+      "openInFoys": "Open in FOYS",
+      "loading": "Loading…",
+      "error": "Something went wrong."
     },
     "teams": {
       "title": "Teams",
       "count": "{count, plural, =0 {No teams} one {# team} other {# teams}}",
+      "loading": "Loading…",
+      "error": "Something went wrong.",
       "columns": {
         "type": "Type",
         "name": "Name",
@@ -77,6 +82,8 @@
       "title": "Active Members",
       "count": "{count, plural, =0 {No active members} one {# active member} other {# active members}}",
       "empty": "No active members yet.",
+      "loading": "Loading…",
+      "error": "Something went wrong.",
       "filter": {
         "label": "Season"
       },
@@ -100,6 +107,8 @@
     "matches": {
       "title": "Home Matches",
       "count": "{count, plural, =0 {No matches} one {# match} other {# matches}}",
+      "loading": "Loading…",
+      "error": "Something went wrong.",
       "columns": {
         "date": "Date",
         "time": "Time",
@@ -108,6 +117,28 @@
         "score": "Score",
         "status": "Status",
         "field": "Field"
+      },
+      "openInFoys": "Open in FOYS"
+    },
+    "tasks": {
+      "title": "Task Schedule",
+      "count": "{count, plural, =0 {No tasks} one {# task} other {# tasks}}",
+      "loading": "Loading…",
+      "error": "Something went wrong.",
+      "columns": {
+        "date": "Date",
+        "time": "Time",
+        "homeTeam": "Home",
+        "awayTeam": "Away",
+        "task": "Task",
+        "assigned": "Assigned"
+      },
+      "taskTypes": {
+        "HALL_DUTY": "Hall duty",
+        "REFEREE": "Referee",
+        "TABLE_SCORER": "Table scorer",
+        "TABLE_TIMER": "Table timer",
+        "TABLE_24S_SHOT_CLOCK": "24s shot clock"
       },
       "openInFoys": "Open in FOYS"
     }

@@ -1,30 +1,14 @@
-import { setRequestLocale } from "next-intl/server";
-import { getTranslations } from "next-intl/server";
+"use client";
+
+import { useTranslations } from "next-intl";
 import { ExternalLink } from "lucide-react";
-import { db } from "@/lib/db";
 import { foysTeamUrl, formatDiscipline } from "@/lib/types";
+import { useApiData } from "@/lib/use-api";
+import type { TeamsResponse } from "@/lib/types";
 
-type Props = {
-  params: Promise<{ locale: string }>;
-};
-
-export default async function TeamsPage({ params }: Props) {
-  const { locale } = await params;
-  setRequestLocale(locale);
-
-  const t = await getTranslations("Dashboard.teams");
-
-  const teams = await db.orm.public.Team.select(
-    "id",
-    "foysCompetitionTeamId",
-    "foysTeamId",
-    "name",
-    "season",
-    "teamType",
-    "discipline",
-  )
-    .orderBy([(t) => t.season.desc(), (t) => t.teamType.asc()])
-    .all();
+export default function TeamsPage() {
+  const t = useTranslations("Dashboard.teams");
+  const { data: teams, error, loading } = useApiData<TeamsResponse>("/api/teams");
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -32,7 +16,7 @@ export default async function TeamsPage({ params }: Props) {
         {t("title")}
       </h1>
       <p className="mt-1 text-sm text-ink-muted">
-        {t("count", { count: teams.length })}
+        {t("count", { count: teams?.length ?? 0 })}
       </p>
 
       <div className="mt-6 overflow-x-auto">
@@ -49,7 +33,21 @@ export default async function TeamsPage({ params }: Props) {
             </tr>
           </thead>
           <tbody>
-            {teams.map((team) => (
+            {loading && (
+              <tr>
+                <td colSpan={7} className="py-6 text-center text-ink-muted">
+                  {t("loading")}
+                </td>
+              </tr>
+            )}
+            {error && (
+              <tr>
+                <td colSpan={7} className="py-6 text-center text-red-600">
+                  {t("error")}
+                </td>
+              </tr>
+            )}
+            {teams?.map((team) => (
               <tr key={team.id} className="border-b border-line/50">
                 <td className="py-3 pr-4">
                   <a

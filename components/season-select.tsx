@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SEASONS } from "@/lib/types";
 
 const CURRENT_SEASON = SEASONS[0];
@@ -9,11 +9,14 @@ const CURRENT_SEASON = SEASONS[0];
 export default function SeasonSelect() {
   const t = useTranslations("Dashboard.activeMembers");
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const current = searchParams.get("season") ?? CURRENT_SEASON;
 
   function onSelect(value: string) {
-    router.push(`/dashboard/active-members?season=${value}`);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("season", value);
+    router.push(`${pathname}?${params.toString()}`);
   }
 
   return (
