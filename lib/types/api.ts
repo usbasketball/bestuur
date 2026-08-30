@@ -4,7 +4,6 @@ import type {
   Discipline,
   FieldType,
   MatchStatus,
-  TaskType,
   TeamType,
 } from "@/lib/types";
 
@@ -55,9 +54,6 @@ export type TeamsResponse = Array<{
 }>;
 
 export type TasksResponse = Array<{
-  id: string;
-  taskId: string;
-  taskType: TaskType;
   matchId: string;
   foysMatchId: number;
   matchDate: string;
@@ -65,10 +61,13 @@ export type TasksResponse = Array<{
   homeTeam: string | null;
   awayOrganisationName: string | null;
   awayTeamName: string | null;
-  isDouble: boolean;
-  nbbNumber: string | null;
-  userName: string | null;
-  userEmail: string | null;
+  referees: Array<{
+    isDouble: boolean;
+    name: string | null;
+  }>;
+  tableScorer: string | null;
+  tableTimer: string | null;
+  table24s: string | null;
 }>;
 
 export type MatchesResponse = {

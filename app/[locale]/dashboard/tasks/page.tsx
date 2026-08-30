@@ -4,9 +4,10 @@ import { Suspense, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ExternalLink } from "lucide-react";
+import { useQuery } from "urql";
 import { foysMatchUrl, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-import { useApiData } from "@/lib/use-api";
+import { TASKS_QUERY } from "@/lib/graphql/queries";
 import type { TasksResponse } from "@/lib/types";
 
 export default function TasksPage() {
@@ -31,9 +32,13 @@ function TasksContent() {
     }
   }, [rawSeason, router]);
 
-  const { data: tasks, error, loading } = useApiData<TasksResponse>(
-    `/api/tasks?season=${season}`,
-  );
+  const [{ data, error, fetching }] = useQuery<{ tasks: TasksResponse }>({
+    query: TASKS_QUERY,
+    variables: { season },
+    requestPolicy: "network-only",
+  });
+  const tasks = data?.tasks;
+  const loading = fetching;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -56,21 +61,24 @@ function TasksContent() {
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.time")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.homeTeam")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.awayTeam")}</th>
-              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.task")}</th>
-              <th className="sticky top-0 bg-white pb-3 font-medium">{t("columns.assigned")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.ref1")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.ref2")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.tableScorer")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.tableTimer")}</th>
+              <th className="sticky top-0 bg-white pb-3 font-medium">{t("columns.table24s")}</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="py-6 text-center text-ink-muted">
+                <td colSpan={10} className="py-6 text-center text-ink-muted">
                   {t("loading")}
                 </td>
               </tr>
             )}
             {error && (
               <tr>
-                <td colSpan={7} className="py-6 text-center text-red-600">
+                <td colSpan={10} className="py-6 text-center text-red-600">
                   {t("error")}
                 </td>
               </tr>
@@ -80,8 +88,17 @@ function TasksContent() {
                 ? `${task.awayOrganisationName} - ${task.awayTeamName}`
                 : task.awayTeamName ?? "—";
 
+              const ref1 = task.referees[0];
+              const ref2 = task.referees[1];
+              const ref1Label = ref1
+                ? (ref1.name || "NBB") + (ref1.isDouble ? " •2" : "")
+                : "NBB";
+              const ref2Label = ref2
+                ? (ref2.name || "NBB") + (ref2.isDouble ? " •2" : "")
+                : "NBB";
+
               return (
-                <tr key={task.id} className="border-b border-line/50">
+                <tr key={task.matchId} className="border-b border-line/50">
                   <td className="py-3 pr-4">
                     <a
                       href={foysMatchUrl(task.foysMatchId)}
@@ -99,13 +116,11 @@ function TasksContent() {
                   </td>
                   <td className="py-3 pr-4 font-medium text-ink">{task.homeTeam ?? "—"}</td>
                   <td className="py-3 pr-4 text-ink-muted">{awayLabel}</td>
-                  <td className="py-3 pr-4 text-ink-muted">
-                    {t(`taskTypes.${task.taskType}`)}
-                    {task.isDouble && " •2"}
-                  </td>
-                  <td className="py-3 text-ink">
-                    {task.userName || task.nbbNumber || task.userEmail || "—"}
-                  </td>
+                  <td className="py-3 pr-4 text-ink">{ref1Label}</td>
+                  <td className="py-3 pr-4 text-ink">{ref2Label}</td>
+                  <td className="py-3 pr-4 text-ink-muted">{task.tableScorer ?? "—"}</td>
+                  <td className="py-3 pr-4 text-ink-muted">{task.tableTimer ?? "—"}</td>
+                  <td className="py-3 text-ink-muted">{task.table24s ?? "--"}</td>
                 </tr>
               );
             })}

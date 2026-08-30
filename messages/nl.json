@@ -121,8 +121,8 @@
       "openInFoys": "Openen in FOYS"
     },
     "tasks": {
-      "title": "Takenrooster",
-      "count": "{count, plural, =0 {Geen taken} one {# taak} other {# taken}}",
+      "title": "Takenschema",
+      "count": "{count, plural, =0 {Geen wedstrijden} one {# wedstrijd} other {# wedstrijden}}",
       "loading": "Laden…",
       "error": "Er is iets misgegaan.",
       "columns": {
@@ -130,15 +130,11 @@
         "time": "Tijd",
         "homeTeam": "Thuis",
         "awayTeam": "Uit",
-        "task": "Taak",
-        "assigned": "Toegewezen"
-      },
-      "taskTypes": {
-        "HALL_DUTY": "Zaalwacht",
-        "REFEREE": "Scheidsrechter",
-        "TABLE_SCORER": "Tafelscorer",
-        "TABLE_TIMER": "Timer",
-        "TABLE_24S_SHOT_CLOCK": "24s shotclock"
+        "ref1": "Ref 1",
+        "ref2": "Ref 2",
+        "tableScorer": "Tafelscorer",
+        "tableTimer": "Timer",
+        "table24s": "24s"
       },
       "openInFoys": "Openen in FOYS"
     }

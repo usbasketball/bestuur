@@ -4,9 +4,10 @@ import { Suspense, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ExternalLink } from "lucide-react";
+import { useQuery } from "urql";
 import { foysMatchUrl, formatFieldType, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-import { useApiData } from "@/lib/use-api";
+import { MATCHES_QUERY } from "@/lib/graphql/queries";
 import type { MatchesResponse } from "@/lib/types";
 
 export default function MatchesPage() {
@@ -31,17 +32,21 @@ function MatchesContent() {
     }
   }, [rawSeason, router]);
 
-  const { data, error, loading } = useApiData<MatchesResponse>(
-    `/api/matches?season=${season}`,
-  );
+  const [{ data, error, fetching }] = useQuery<{ matches: MatchesResponse }>({
+    query: MATCHES_QUERY,
+    variables: { season },
+    requestPolicy: "network-only",
+  });
+  const loading = fetching;
+  const matchesData = data?.matches;
 
   const homeTeamByFoysId = new Map(
-    (data?.homeTeams ?? []).map(
+    (matchesData?.homeTeams ?? []).map(
       (team) => [team.foysCompetitionTeamId, team.name ?? team.teamType] as const,
     ),
   );
 
-  const matches = data?.matches ?? [];
+  const matches = matchesData?.matches ?? [];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">

@@ -4,10 +4,11 @@ import { Suspense, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Check, ExternalLink } from "lucide-react";
+import { useQuery } from "urql";
 import { CLUB_MEMBERSHIP_TYPES, foysMemberUrl, TEAM_TYPES } from "@/lib/types";
 import type { ClubMembershipType, MembersResponse, TeamType } from "@/lib/types";
 import TeamTypeSelect from "@/components/team-type-select";
-import { useApiData } from "@/lib/use-api";
+import { MEMBERS_QUERY } from "@/lib/graphql/queries";
 
 export default function MembersPage() {
   return (
@@ -21,7 +22,12 @@ function MembersContent() {
   const t = useTranslations("Dashboard.members");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: users, error, loading } = useApiData<MembersResponse>("/api/members");
+  const [{ data, error, fetching }] = useQuery<{ members: MembersResponse }>({
+    query: MEMBERS_QUERY,
+    requestPolicy: "network-only",
+  });
+  const users = data?.members;
+  const loading = fetching;
 
   const rawTeamType = searchParams.get("team_type");
   const teamType =

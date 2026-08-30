@@ -3,10 +3,11 @@
 import { Suspense } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
+import { useQuery } from "urql";
 import { COMMITTEE_TYPES, SEASONS } from "@/lib/types";
 import type { ActiveMembersResponse, ActiveMemberUser, CommitteeType, Season, TeamType } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-import { useApiData } from "@/lib/use-api";
+import { ACTIVE_MEMBERS_QUERY } from "@/lib/graphql/queries";
 
 const CURRENT_SEASON = SEASONS[0];
 
@@ -41,9 +42,15 @@ function ActiveMembersContent() {
     ? (rawSeason as Season)
     : CURRENT_SEASON;
 
-  const { data, error, loading } = useApiData<ActiveMembersResponse>(
-    `/api/active-members?season=${season}`,
-  );
+  const [{ data: result, error, fetching }] = useQuery<{
+    activeMembers: ActiveMembersResponse;
+  }>({
+    query: ACTIVE_MEMBERS_QUERY,
+    variables: { season },
+    requestPolicy: "network-only",
+  });
+  const data = result?.activeMembers;
+  const loading = fetching;
 
   const rows: ActiveRow[] = data
     ? [
