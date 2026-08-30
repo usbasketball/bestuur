@@ -6,7 +6,7 @@ import SeasonSelect from "@/components/season-select";
 
 const CURRENT_SEASON = SEASONS[0];
 
-const TYPE_ORDER = ["COACH", ...COMMITTEE_TYPES] as const;
+const TYPE_ORDER = ["COACH", "HALL_DUTY", ...COMMITTEE_TYPES] as const;
 
 const typeRank = (type: ActiveRow["type"]): number => {
   const idx = TYPE_ORDER.indexOf(type as (typeof TYPE_ORDER)[number]);
@@ -27,7 +27,7 @@ type UserInfo = {
 
 type ActiveRow = {
   key: string;
-  type: "COACH" | CommitteeType;
+  type: "COACH" | "HALL_DUTY" | CommitteeType;
   team: TeamType | null;
   user: UserInfo;
 };
@@ -49,10 +49,14 @@ export default async function ActiveMembersPage({ params, searchParams }: Props)
     "user",
     (u) => u.select("firstName", "lastNamePrefix", "lastName", "nbbNumber"),
   );
+  const hallDutiesQuery = db.orm.public.HallDuty.select("id", "season").include("user", (u) =>
+    u.select("firstName", "lastNamePrefix", "lastName", "nbbNumber"),
+  );
 
-  const [coaches, committees] = await Promise.all([
+  const [coaches, committees, hallDuties] = await Promise.all([
     coachesQuery.where((c) => c.season.eq(season)).all(),
     committeesQuery.where((c) => c.season.eq(season)).all(),
+    hallDutiesQuery.where((h) => h.season.eq(season)).all(),
   ]);
 
   const rows: ActiveRow[] = [
@@ -67,6 +71,12 @@ export default async function ActiveMembersPage({ params, searchParams }: Props)
       type: committee.type,
       team: null as TeamType | null,
       user: committee.user,
+    })),
+    ...hallDuties.map((hallDuty) => ({
+      key: `hall-duty-${hallDuty.id}`,
+      type: "HALL_DUTY" as const,
+      team: null as TeamType | null,
+      user: hallDuty.user,
     })),
   ].sort((a, b) =>
     typeRank(a.type) - typeRank(b.type) ||

@@ -124,6 +124,7 @@ model User {
   memberships       ClubMembership[]
   coaches           Coach[]
   committees        Committee[]
+  hallDuties        HallDuty[]
 
   createdAt         Timestamp  @default(now()) @map("created_at")
   updatedAt         temporal.updatedAt() @map("updated_at")
@@ -178,4 +179,18 @@ model Committee {
 
   @@index([season])
   @@map("committees")
+}
+
+model HallDuty {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  season    String
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  createdAt Timestamp @default(now()) @map("created_at")
+  updatedAt temporal.updatedAt() @map("updated_at")
+
+  @@index([season])
+  @@map("hall_duties")
 }
