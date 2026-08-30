@@ -12,3 +12,12 @@ export const SEASONS = [
 ];
 
 export type Season = (typeof SEASONS)[number];
+
+// Derive the season key from a year/month (e.g. a match date). Seasons run
+// across a year boundary and end in summer: Jan–Jul → "year-1-year",
+// Aug–Dec → "year-year+1". Accepts any object with `year`/`month`, including a
+// Temporal.PlainDateTime.
+export function seasonFromDate(date: { year: number; month: number }): string {
+  const startYear = date.month >= 1 && date.month <= 7 ? date.year - 1 : date.year;
+  return `${startYear}-${startYear + 1}`;
+}

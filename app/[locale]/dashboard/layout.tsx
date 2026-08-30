@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
-import { Users, Trophy, Shield, GraduationCap, LogOut } from "lucide-react";
+import { Users, Trophy, Shield, GraduationCap, ClipboardList, LogOut } from "lucide-react";
 import Image from "next/image";
 
 type Props = {
@@ -20,6 +20,7 @@ const TABS = [
   { key: "teams", href: "/dashboard/teams", icon: Shield },
   { key: "activeMembers", href: "/dashboard/active-members", icon: GraduationCap },
   { key: "matches", href: "/dashboard/matches", icon: Trophy },
+  { key: "tasks", href: "/dashboard/tasks", icon: ClipboardList },
 ] as const;
 
 export default async function DashboardLayout({ params, children }: Props) {
@@ -60,13 +61,13 @@ async function DashboardShell({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="mt-auto">
-          <a
+          <Link
             href="/auth/logout"
             title={t("logout")}
             className="flex h-9 w-9 items-center justify-center text-paper/60 transition-colors hover:bg-white/10 hover:text-paper"
           >
             <LogOut className="h-5 w-5" />
-          </a>
+          </Link>
         </div>
       </aside>
       <main className="flex-1 overflow-y-auto">{children}</main>

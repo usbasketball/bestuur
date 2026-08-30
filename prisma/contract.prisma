@@ -200,11 +200,11 @@ model HallDuty {
 // ---------------------------------------------------------------
 
 enum TaskType {
-  ZAALDIENST       // hall duty
-  SCHEID_REFEREE   // referee duty
-  TAFEL_SCOREKEEPER
-  TAFEL_TIMER
-  SHOT_CLOCK
+  HALL_DUTY
+  REFEREE
+  TABLE_SCORER
+  TABLE_TIMER
+  TABLE_24S_SHOT_CLOCK
 }
 
 model Task {
@@ -224,13 +224,14 @@ model Task {
 model TaskAssignment {
   id        String   @id @default(uuid())
   taskId    String   @map("task_id")
-  userId    String   @map("user_id")
+  userId    String?  @map("user_id")
+  nbbNumber String?  @map("nbb_number")
   isDouble  Boolean  @default(false)
   createdAt Timestamp @default(now()) @map("created_at")
   updatedAt temporal.updatedAt() @map("updated_at")
 
   task      Task     @relation(fields: [taskId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
 
   @@unique([taskId, userId])
   @@index([userId])

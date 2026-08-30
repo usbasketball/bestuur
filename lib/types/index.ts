@@ -5,8 +5,9 @@ export { FIELD_TYPES, mapFieldType, formatFieldType, type FieldType } from "./fi
 export { MATCH_STATUSES, mapMatchStatus, type MatchStatus } from "./match-status";
 export { CLUB_MEMBERSHIP_TYPES, mapClubMembershipType, mapPlanMembershipType, type ClubMembershipType } from "./club-membership-type";
 export { COMMITTEE_TYPES, type CommitteeType } from "./committee-type";
+export { TASK_TYPES, type TaskType } from "./task-type";
 export { FOYS_CLUB_ID, FOYS_BASE_URL, foysMemberUrl, foysTeamUrl, foysMatchUrl } from "./foys";
-export { SEASONS, type Season } from "./seasons";
+export { SEASONS, seasonFromDate, type Season } from "./seasons";
 export { toPlainDateTime, toPlainDateTimeFromIso } from "./datetime";
 export type {
   ActiveMemberUser,
@@ -16,4 +17,5 @@ export type {
   MemberMembership,
   MembersResponse,
   TeamsResponse,
+  TasksResponse,
 } from "./api";
