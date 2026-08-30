@@ -88,6 +88,7 @@
       },
       "types": {
         "COACH": "Coach",
+        "HALL_DUTY": "Hall duty",
         "BOARD_CHAIRPERSON": "Board - Chairperson",
         "BOARD_SECRETARY": "Board - Secretary",
         "BOARD_TREASURER": "Board - Treasurer",
