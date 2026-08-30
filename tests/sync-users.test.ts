@@ -189,6 +189,88 @@ describe("fetchAllAuth0Users", () => {
   });
 });
 
+describe("createAuth0User", () => {
+  it("creates a user and sends a password-change ticket", async () => {
+    vi.resetModules();
+    const { createAuth0User } = await import("../scripts/sync-users");
+    const fetchMock = mockFetch(
+      jsonResponse({ access_token: "tok" }),
+      jsonResponse({ user_id: "auth0|new" }),
+      jsonResponse({ ok: true }),
+    );
+
+    const result = await createAuth0User({ email: "a@x.nl", name: "Anna Bakker" });
+
+    expect(result).toEqual({ user_id: "auth0|new", created: true });
+
+    const calls = fetchMock.mock.calls;
+    const createCall = calls.find(([url]) => String(url).includes("/api/v2/users"));
+    expect(createCall).toBeDefined();
+    const [ , createInit ] = createCall!;
+    expect(createInit?.method).toBe("POST");
+    const createBody = JSON.parse(createInit!.body as string);
+    expect(createBody.email).toBe("a@x.nl");
+    expect(createBody.name).toBe("Anna Bakker");
+    expect(createBody.connection).toBe("Username-Password-Authentication");
+    expect(createBody.email_verified).toBe(false);
+    expect(typeof createBody.password).toBe("string");
+    expect(createBody.password.length).toBeGreaterThan(8);
+
+    const ticketCall = calls.find(([url]) => String(url).includes("/api/v2/tickets/password-change"));
+    expect(ticketCall).toBeDefined();
+    const [, ticketInit] = ticketCall!;
+    const ticketBody = JSON.parse(ticketInit!.body as string);
+    expect(ticketBody.user_id).toBe("auth0|new");
+    expect(ticketBody.mark_email_as_verified).toBe(true);
+  });
+
+  it("links an existing user when create returns 409", async () => {
+    vi.resetModules();
+    const { createAuth0User } = await import("../scripts/sync-users");
+    mockFetch(
+      jsonResponse({ access_token: "tok" }),
+      errorResponse(409, "user already exists"),
+      jsonResponse([{ email: "a@x.nl", user_id: "auth0|existing" }]),
+    );
+
+    const result = await createAuth0User({ email: "a@x.nl", name: "Anna Bakker" });
+
+    expect(result).toEqual({ user_id: "auth0|existing", created: false });
+  });
+
+  it("rethrows when create fails with a non-409 error", async () => {
+    vi.resetModules();
+    const { createAuth0User } = await import("../scripts/sync-users");
+    mockFetch(jsonResponse({ access_token: "tok" }), errorResponse(403, "forbidden"));
+
+    await expect(createAuth0User({ email: "a@x.nl", name: "Anna Bakker" })).rejects.toThrow(/403/);
+  });
+});
+
+describe("getAuth0UserByEmail", () => {
+  it("returns the first matching user", async () => {
+    vi.resetModules();
+    const { getAuth0UserByEmail } = await import("../scripts/sync-users");
+    mockFetch(
+      jsonResponse({ access_token: "tok" }),
+      jsonResponse([
+        { email: "a@x.nl", user_id: "auth0|1" },
+        { email: "a@x.nl", user_id: "auth0|2" },
+      ]),
+    );
+
+    expect(await getAuth0UserByEmail("a@x.nl")).toEqual({ email: "a@x.nl", user_id: "auth0|1" });
+  });
+
+  it("returns null when no user matches", async () => {
+    vi.resetModules();
+    const { getAuth0UserByEmail } = await import("../scripts/sync-users");
+    mockFetch(jsonResponse({ access_token: "tok" }), jsonResponse([]));
+
+    expect(await getAuth0UserByEmail("a@x.nl")).toBeNull();
+  });
+});
+
 describe("upsertUser", () => {
   it("creates a user with all fields and upserts on email", async () => {
     const db = createMockDb();

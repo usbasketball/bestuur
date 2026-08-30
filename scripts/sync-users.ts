@@ -10,16 +10,23 @@
 //   npm run sync:users               # dry run (default)
 //   npm run sync:users -- --live     # actually write to the database
 //
+// In live mode, members without a matching Auth0 identity are created in Auth0
+// and sent a password-change ticket. Dry runs only report which members would
+// be created.
+//
 // Required env vars (in .env.local / .env):
 //   DATABASE_URL              PostgreSQL connection string
 //   AUTH0_DOMAIN              e.g. auth.usbasketball.nl
 //   AUTH0_M2M_CLIENT_ID       M2M app client ID (needs Management API access)
 //   AUTH0_M2M_CLIENT_SECRET   M2M app client secret
 //   FOYS_API_KEY              Foys bearer token
+//   AUTH0_CONNECTION          (optional) Auth0 database connection, defaults to
+//                             "Username-Password-Authentication"
 
 import path from "path";
 import { fileURLToPath } from "url";
 import fs from "fs";
+import { randomBytes } from "crypto";
 import dotenv from "dotenv";
 import { Pool } from "pg";
 import "temporal-polyfill/full/global";
@@ -254,6 +261,61 @@ export async function fetchAllAuth0Users(): Promise<Auth0User[]> {
   return allUsers;
 }
 
+// ── Auth0 user creation ───────────────────────────────────────────────────────
+
+const AUTH0_CONNECTION =
+  process.env.AUTH0_CONNECTION ?? "Username-Password-Authentication";
+
+function randomPassword(): string {
+  return randomBytes(24).toString("base64url");
+}
+
+export async function getAuth0UserByEmail(email: string): Promise<Auth0User | null> {
+  const data = (await mgmtFetch(
+    `/users-by-email?email=${encodeURIComponent(email)}`
+  )) as Auth0User[] | null;
+  if (!Array.isArray(data) || data.length === 0) return null;
+  return data[0];
+}
+
+export async function sendPasswordChangeTicket(userId: string): Promise<void> {
+  await mgmtFetch("/tickets/password-change", {
+    method: "POST",
+    body: JSON.stringify({
+      user_id: userId,
+      mark_email_as_verified: true,
+    }),
+  });
+}
+
+export async function createAuth0User(user: {
+  email: string;
+  name: string;
+}): Promise<{ user_id: string; created: boolean }> {
+  try {
+    const data = (await mgmtFetch("/users", {
+      method: "POST",
+      body: JSON.stringify({
+        email: user.email,
+        name: user.name,
+        password: randomPassword(),
+        connection: AUTH0_CONNECTION,
+        email_verified: false,
+      }),
+    })) as { user_id: string };
+    await sendPasswordChangeTicket(data.user_id);
+    return { user_id: data.user_id, created: true };
+  } catch (err) {
+    // The email already exists in Auth0 (e.g. created between the initial fetch
+    // and this run): link the existing user instead.
+    if (err instanceof Error && err.message.includes("409")) {
+      const existing = await getAuth0UserByEmail(user.email);
+      if (existing) return { user_id: existing.user_id, created: false };
+    }
+    throw err;
+  }
+}
+
 // ── Artifacts (local dev inspection) ──────────────────────────────────────────
 
 const ARTIFACTS_DIR = path.join(rootDir, "scripts", "artifacts");
@@ -390,6 +452,9 @@ async function main(): Promise<void> {
   let upserted = 0;
   let skipped = 0;
   let errors = 0;
+  let auth0Created = 0;
+  let auth0WouldCreate = 0;
+  let auth0Errors = 0;
   const personDetailSamples: { guid: string; detail: FoysMemberDetail }[] = [];
 
   for (const member of items) {
@@ -403,7 +468,33 @@ async function main(): Promise<void> {
     const { firstName, lastNamePrefix, lastName } = splitName(member);
     const nbbNumber: string | null = member.federationMembershipIdentifier || null;
     const foysUserId: string | null = member.guid || null;
-    const auth0Sub: string | null = emailToSub.get(email.toLowerCase()) || null;
+    let auth0Sub: string | null = emailToSub.get(email.toLowerCase()) || null;
+    let auth0WillCreate = false;
+
+    if (!auth0Sub) {
+      if (dryRun) {
+        auth0WillCreate = true;
+        auth0WouldCreate++;
+      } else {
+        try {
+          const displayName =
+            [firstName, lastNamePrefix, lastName].filter(Boolean).join(" ") || email;
+          const result = await createAuth0User({ email, name: displayName });
+          emailToSub.set(email.toLowerCase(), result.user_id);
+          auth0Sub = result.user_id;
+          if (result.created) {
+            auth0Created++;
+            console.log(`Created Auth0 user for ${email}`);
+          } else {
+            console.log(`Linked existing Auth0 user for ${email}`);
+          }
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`Failed to create Auth0 user for ${email}: ${message}`);
+          auth0Errors++;
+        }
+      }
+    }
 
     let refereeLevel = null;
     if (nbbNumber) {
@@ -430,7 +521,7 @@ async function main(): Promise<void> {
     }
 
     if (dryRun) {
-      console.log(`Would upsert: ${member.fullName || email} (${email}) — nbb: ${nbbNumber}, auth0: ${auth0Sub ? "yes" : "no"}, referee: ${refereeLevel || "none"}, member since: ${memberSince ? memberSince.toISOString().slice(0, 10) : "unknown"}`);
+      console.log(`Would upsert: ${member.fullName || email} (${email}) — nbb: ${nbbNumber}, auth0: ${auth0WillCreate ? "create" : auth0Sub ? "yes" : "no"}, referee: ${refereeLevel || "none"}, member since: ${memberSince ? memberSince.toISOString().slice(0, 10) : "unknown"}`);
       continue;
     }
 
@@ -461,9 +552,13 @@ async function main(): Promise<void> {
     saveArtifact("person-detail.sample.json", personDetailSamples);
   }
 
-  console.log(
-    `\nDone. Upserted: ${upserted}, Skipped: ${skipped}, Errors: ${errors}`
-  );
+  let summary = `\nDone. Upserted: ${upserted}, Skipped: ${skipped}, Errors: ${errors}`;
+  if (dryRun) {
+    summary += `, Auth0 would create: ${auth0WouldCreate}`;
+  } else {
+    summary += `, Auth0 created: ${auth0Created}, Auth0 errors: ${auth0Errors}`;
+  }
+  console.log(summary);
 }
 
 if (isMainModule(import.meta.url)) {

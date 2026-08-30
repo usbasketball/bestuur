@@ -11,6 +11,10 @@ npm run sync:users          # dry run (default)
 npm run sync:users -- --live   # write to the database
 ```
 
+Members that have no matching Auth0 identity are created in Auth0 in live mode
+and sent a password-change email (so they can set their own password on first
+login). A dry run only prints which members would be created.
+
 Requires `FOYS_API_KEY`, `AUTH0_M2M_DOMAIN`, `AUTH0_M2M_CLIENT_ID`, and
 `AUTH0_M2M_CLIENT_SECRET` in your `.env.local`.
 
