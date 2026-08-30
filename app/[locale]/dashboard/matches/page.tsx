@@ -1,58 +1,47 @@
-import { setRequestLocale } from "next-intl/server";
-import { getTranslations } from "next-intl/server";
+"use client";
+
+import { Suspense, useEffect } from "react";
+import { useTranslations } from "next-intl";
+import { useSearchParams, useRouter } from "next/navigation";
 import { ExternalLink } from "lucide-react";
-import { db } from "@/lib/db";
-import { redirect } from "next/navigation";
-import { formatFieldType, foysMatchUrl, SEASONS } from "@/lib/types";
+import { foysMatchUrl, formatFieldType, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
+import { useApiData } from "@/lib/use-api";
+import type { MatchesResponse } from "@/lib/types";
 
-type Props = {
-  params: Promise<{ locale: string }>;
-  searchParams: Promise<{ season?: string }>;
-};
+export default function MatchesPage() {
+  return (
+    <Suspense>
+      <MatchesContent />
+    </Suspense>
+  );
+}
 
-export default async function MatchesPage({ params, searchParams }: Props) {
-  const { locale } = await params;
-  const { season: rawSeason } = await searchParams;
-  setRequestLocale(locale);
+function MatchesContent() {
+  const t = useTranslations("Dashboard.matches");
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const t = await getTranslations("Dashboard.matches");
-
+  const rawSeason = searchParams.get("season");
   const season = SEASONS.includes(rawSeason ?? "") ? rawSeason! : SEASONS[0];
 
-  if (!rawSeason || !SEASONS.includes(rawSeason)) {
-    redirect(`/dashboard/matches?season=${season}`);
-  }
+  useEffect(() => {
+    if (!rawSeason || !SEASONS.includes(rawSeason)) {
+      router.replace(`/dashboard/matches?season=${SEASONS[0]}`);
+    }
+  }, [rawSeason, router]);
 
-  const homeTeams = await db.orm.public.Team.select(
-    "foysCompetitionTeamId",
-    "name",
-    "teamType",
-  )
-    .where((t) => t.season.eq(season))
-    .all();
-
-  const homeTeamByFoysId = new Map(
-    homeTeams.map((t) => [t.foysCompetitionTeamId, t.name ?? t.teamType] as const),
+  const { data, error, loading } = useApiData<MatchesResponse>(
+    `/api/matches?season=${season}`,
   );
 
-  const matches = await db.orm.public.Match.select(
-    "id",
-    "foysMatchId",
-    "status",
-    "date",
-    "startTime",
-    "homeScore",
-    "awayScore",
-    "homeTeamFoysId",
-    "awayTeamFoysId",
-    "awayTeamName",
-    "awayOrganisationName",
-    "field",
-  )
-    .where((m) => m.homeTeamFoysId.in([...homeTeamByFoysId.keys()]))
-    .orderBy([(m) => m.date.asc(), (m) => m.startTime.asc()])
-    .all();
+  const homeTeamByFoysId = new Map(
+    (data?.homeTeams ?? []).map(
+      (team) => [team.foysCompetitionTeamId, team.name ?? team.teamType] as const,
+    ),
+  );
+
+  const matches = data?.matches ?? [];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -81,6 +70,20 @@ export default async function MatchesPage({ params, searchParams }: Props) {
             </tr>
           </thead>
           <tbody>
+            {loading && (
+              <tr>
+                <td colSpan={8} className="py-6 text-center text-ink-muted">
+                  {t("loading")}
+                </td>
+              </tr>
+            )}
+            {error && (
+              <tr>
+                <td colSpan={8} className="py-6 text-center text-red-600">
+                  {t("error")}
+                </td>
+              </tr>
+            )}
             {matches.map((match) => {
               const homeLabel =
                 homeTeamByFoysId.get(match.homeTeamFoysId) ??
@@ -107,7 +110,7 @@ export default async function MatchesPage({ params, searchParams }: Props) {
                     </a>
                   </td>
                   <td className="py-3 pr-4 text-ink">
-                    {match.date.toPlainDate().toString()}
+                    {match.date}
                   </td>
                   <td className="py-3 pr-4 text-ink-muted">
                     {match.startTime?.slice(0, 5) ?? "—"}

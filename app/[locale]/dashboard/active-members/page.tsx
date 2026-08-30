@@ -1,8 +1,12 @@
-import { setRequestLocale } from "next-intl/server";
-import { getTranslations } from "next-intl/server";
-import { db } from "@/lib/db";
-import { COMMITTEE_TYPES, SEASONS, type CommitteeType, type Season, type TeamType } from "@/lib/types";
+"use client";
+
+import { Suspense } from "react";
+import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
+import { COMMITTEE_TYPES, SEASONS } from "@/lib/types";
+import type { ActiveMembersResponse, ActiveMemberUser, CommitteeType, Season, TeamType } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
+import { useApiData } from "@/lib/use-api";
 
 const CURRENT_SEASON = SEASONS[0];
 
@@ -13,76 +17,61 @@ const typeRank = (type: ActiveRow["type"]): number => {
   return idx === -1 ? TYPE_ORDER.length : idx;
 };
 
-type Props = {
-  params: Promise<{ locale: string }>;
-  searchParams: Promise<{ season?: string }>;
-};
-
-type UserInfo = {
-  firstName: string | null;
-  lastNamePrefix: string | null;
-  lastName: string | null;
-  nbbNumber: string | null;
-};
-
 type ActiveRow = {
   key: string;
   type: "COACH" | "HALL_DUTY" | CommitteeType;
   team: TeamType | null;
-  user: UserInfo;
+  user: ActiveMemberUser;
 };
 
-export default async function ActiveMembersPage({ params, searchParams }: Props) {
-  const { locale } = await params;
-  const { season: rawSeason } = await searchParams;
-  setRequestLocale(locale);
-
-  const t = await getTranslations("Dashboard.activeMembers");
-
-  const season =
-    rawSeason && SEASONS.includes(rawSeason as Season) ? (rawSeason as Season) : CURRENT_SEASON;
-
-  const coachesQuery = db.orm.public.Coach.select("id", "team", "season").include("user", (u) =>
-    u.select("firstName", "lastNamePrefix", "lastName", "nbbNumber"),
+export default function ActiveMembersPage() {
+  return (
+    <Suspense>
+      <ActiveMembersContent />
+    </Suspense>
   );
-  const committeesQuery = db.orm.public.Committee.select("id", "type", "season").include(
-    "user",
-    (u) => u.select("firstName", "lastNamePrefix", "lastName", "nbbNumber"),
-  );
-  const hallDutiesQuery = db.orm.public.HallDuty.select("id", "season").include("user", (u) =>
-    u.select("firstName", "lastNamePrefix", "lastName", "nbbNumber"),
+}
+
+function ActiveMembersContent() {
+  const t = useTranslations("Dashboard.activeMembers");
+  const searchParams = useSearchParams();
+
+  const rawSeason = searchParams.get("season");
+  const season = SEASONS.includes(rawSeason ?? "")
+    ? (rawSeason as Season)
+    : CURRENT_SEASON;
+
+  const { data, error, loading } = useApiData<ActiveMembersResponse>(
+    `/api/active-members?season=${season}`,
   );
 
-  const [coaches, committees, hallDuties] = await Promise.all([
-    coachesQuery.where((c) => c.season.eq(season)).all(),
-    committeesQuery.where((c) => c.season.eq(season)).all(),
-    hallDutiesQuery.where((h) => h.season.eq(season)).all(),
-  ]);
-
-  const rows: ActiveRow[] = [
-    ...coaches.map((coach) => ({
-      key: `coach-${coach.id}`,
-      type: "COACH" as const,
-      team: coach.team,
-      user: coach.user,
-    })),
-    ...committees.map((committee) => ({
-      key: `committee-${committee.id}`,
-      type: committee.type,
-      team: null as TeamType | null,
-      user: committee.user,
-    })),
-    ...hallDuties.map((hallDuty) => ({
-      key: `hall-duty-${hallDuty.id}`,
-      type: "HALL_DUTY" as const,
-      team: null as TeamType | null,
-      user: hallDuty.user,
-    })),
-  ].sort((a, b) =>
-    typeRank(a.type) - typeRank(b.type) ||
-    (a.user.firstName ?? "").localeCompare(b.user.firstName ?? "") ||
-    (a.user.lastName ?? "").localeCompare(b.user.lastName ?? ""),
-  );
+  const rows: ActiveRow[] = data
+    ? [
+        ...data.coaches.map((coach) => ({
+          key: `coach-${coach.id}`,
+          type: "COACH" as const,
+          team: coach.team,
+          user: coach.user,
+        })),
+        ...data.committees.map((committee) => ({
+          key: `committee-${committee.id}`,
+          type: committee.type,
+          team: null as TeamType | null,
+          user: committee.user,
+        })),
+        ...data.hallDuties.map((hallDuty) => ({
+          key: `hall-duty-${hallDuty.id}`,
+          type: "HALL_DUTY" as const,
+          team: null as TeamType | null,
+          user: hallDuty.user,
+        })),
+      ].sort(
+        (a, b) =>
+          typeRank(a.type) - typeRank(b.type) ||
+          (a.user.firstName ?? "").localeCompare(b.user.firstName ?? "") ||
+          (a.user.lastName ?? "").localeCompare(b.user.lastName ?? ""),
+      )
+    : [];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -107,6 +96,20 @@ export default async function ActiveMembersPage({ params, searchParams }: Props)
             </tr>
           </thead>
           <tbody>
+            {loading && (
+              <tr>
+                <td colSpan={4} className="py-6 text-center text-ink-muted">
+                  {t("loading")}
+                </td>
+              </tr>
+            )}
+            {error && (
+              <tr>
+                <td colSpan={4} className="py-6 text-center text-red-600">
+                  {t("error")}
+                </td>
+              </tr>
+            )}
             {rows.map((row) => (
               <tr key={row.key} className="border-b border-line/50">
                 <td className="py-3 pr-4 font-mono text-xs text-ink-muted">
@@ -123,7 +126,7 @@ export default async function ActiveMembersPage({ params, searchParams }: Props)
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && (
+            {rows.length === 0 && !loading && !error && (
               <tr>
                 <td colSpan={4} className="py-6 text-center text-ink-muted">
                   {t("empty")}

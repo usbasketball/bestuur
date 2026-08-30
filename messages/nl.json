@@ -58,11 +58,15 @@
         "label": "Teamtype",
         "all": "Alle teams"
       },
-      "openInFoys": "Openen in FOYS"
+      "openInFoys": "Openen in FOYS",
+      "loading": "Laden…",
+      "error": "Er is iets misgegaan."
     },
     "teams": {
       "title": "Teams",
       "count": "{count, plural, =0 {Geen teams} one {# team} other {# teams}}",
+      "loading": "Laden…",
+      "error": "Er is iets misgegaan.",
       "columns": {
         "type": "Type",
         "name": "Naam",
@@ -77,6 +81,8 @@
       "title": "Actieve leden",
       "count": "{count, plural, =0 {Geen actieve leden} one {# actief lid} other {# actieve leden}}",
       "empty": "Nog geen actieve leden.",
+      "loading": "Laden…",
+      "error": "Er is iets misgegaan.",
       "filter": {
         "label": "Seizoen"
       },
@@ -100,6 +106,8 @@
     "matches": {
       "title": "Thuis Wedstrijden",
       "count": "{count, plural, =0 {Geen wedstrijden} one {# wedstrijd} other {# wedstrijden}}",
+      "loading": "Laden…",
+      "error": "Er is iets misgegaan.",
       "columns": {
         "date": "Datum",
         "time": "Tijd",

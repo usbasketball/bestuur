@@ -71,9 +71,7 @@ See [doc/syncing.md](doc/syncing.md) for all sync scripts (users, teams, home ma
 | `npm run contract:emit` | Emit the Prisma contract (`prisma/contract.json` + `contract.d.ts`) |
 | `npm run db:init` | Bootstrap a new database to match the current contract |
 | `npm run db:update` | Update the database schema to match the contract (safe for existing tables) |
-| `npm run sync:users` | Sync users from FOYS + Auth0 (dry run by default; add `--live` to write) |
-| `npm run sync:teams` | Sync teams from FOYS (dry run by default; add `--live` to write) |
-| `npm run sync:matches` | Sync home matches from FOYS (dry run by default; add `--live` to write) |
+| `npm run sync:<entities>` | Sync users/teams/matches etc from FOYS (+ Auth0) (dry run by default; add `--live` to write) |
 
 ## Project Structure
 
@@ -88,8 +86,6 @@ bestuur/
 ├── prisma/
 │   └── contract.prisma     # Database schema (source of truth)
 ├── scripts/
-│   ├── sync-users.ts       # FOYS + Auth0 user sync
-│   ├── sync-teams.ts       # FOYS team sync
-│   └── sync-home-matches.ts # FOYS home match sync
+│   └── sync-<entities>.ts  # FOYS + Auth0 user/team/match sync
 └── ...
 ```

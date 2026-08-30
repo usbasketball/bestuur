@@ -193,4 +193,63 @@ model HallDuty {
 
   @@index([season])
   @@map("hall_duties")
+} 
+
+// ---------------------------------------------------------------
+// New models for takenschema automation
+// ---------------------------------------------------------------
+
+enum TaskType {
+  ZAALDIENST       // hall duty
+  SCHEID_REFEREE   // referee duty
+  TAFEL_SCOREKEEPER
+  TAFEL_TIMER
+  SHOT_CLOCK
 }
+
+model Task {
+  id        String   @id @default(uuid())
+  matchId   String   @map("match_id")
+  taskType  TaskType
+  createdAt Timestamp @default(now()) @map("created_at")
+  updatedAt temporal.updatedAt() @map("updated_at")
+
+  match     Match    @relation(fields: [matchId], references: [id])
+  assignments TaskAssignment[]
+
+  @@index([matchId])
+  @@map("tasks")
+}
+
+model TaskAssignment {
+  id        String   @id @default(uuid())
+  taskId    String   @map("task_id")
+  userId    String   @map("user_id")
+  isDouble  Boolean  @default(false)
+  createdAt Timestamp @default(now()) @map("created_at")
+  updatedAt temporal.updatedAt() @map("updated_at")
+
+  task      Task     @relation(fields: [taskId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([taskId, userId])
+  @@index([userId])
+  @@map("task_assignments")
+}
+
+model HistoricTaskBalance {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  season    String
+  taskType  TaskType
+  count     Int      @default(0)
+  createdAt Timestamp @default(now()) @map("created_at")
+  updatedAt temporal.updatedAt() @map("updated_at")
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, season, taskType])
+  @@index([season])
+  @@map("historic_task_balances")
+}
+
