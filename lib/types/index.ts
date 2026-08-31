@@ -16,5 +16,6 @@ export type {
   Member,
   MembersResponse,
   MatchTasks,
+  TaskAssignee,
   TeamsResponse,
 } from "./api";

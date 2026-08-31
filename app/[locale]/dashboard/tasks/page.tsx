@@ -1,14 +1,14 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
-import { ExternalLink } from "lucide-react";
-import { useQuery } from "urql";
+import { ExternalLink, Pencil, Check, X } from "lucide-react";
+import { useQuery, useMutation } from "urql";
 import { foysMatchUrl, formatFieldType, abbreviateTeamType, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-import { MATCHES_QUERY } from "@/lib/graphql/queries";
-import type { MatchesResponse } from "@/lib/types";
+import { MATCHES_QUERY, MEMBERS_QUERY, UPSERT_TASK_ASSIGNMENT_MUTATION } from "@/lib/graphql/queries";
+import type { MatchesResponse, MembersResponse, Member, TaskAssignee } from "@/lib/types";
 
 export default function TasksPage() {
   return (
@@ -32,13 +32,20 @@ function TasksContent() {
     }
   }, [rawSeason, router]);
 
-  const [{ data, error, fetching }] = useQuery<{ matches: MatchesResponse }>({
+  const [matchesResult] = useQuery<{ matches: MatchesResponse }>({
     query: MATCHES_QUERY,
     variables: { season },
     requestPolicy: "network-only",
   });
-  const loading = fetching;
-  const matches = data?.matches ?? [];
+  const [membersResult] = useQuery<{ members: MembersResponse }>({
+    query: MEMBERS_QUERY,
+    variables: { season },
+    requestPolicy: "network-only",
+  });
+
+  const loading = matchesResult.fetching;
+  const matches = matchesResult.data?.matches ?? [];
+  const members = useMemo(() => membersResult.data?.members ?? [], [membersResult.data]);
 
   const rows = matches
     .filter((m) => m.tasks)
@@ -49,9 +56,10 @@ function TasksContent() {
     );
 
   const assigneeName = (
-    member: { user?: { firstName?: string | null; lastNamePrefix?: string | null; lastName?: string | null } | null; primaryTeam?: string | null } | null | undefined,
+    assignee: TaskAssignee | null | undefined,
     options?: { isReferee?: boolean; homeTeam?: string | null },
   ): string => {
+    const member = assignee?.member;
     if (!member?.user) {
       if (options?.isReferee && ["H1", "H2", "D1"].includes(abbreviateTeamType(options.homeTeam))) {
         return "NBB";
@@ -99,7 +107,7 @@ function TasksContent() {
                 </td>
               </tr>
             )}
-            {error && (
+            {matchesResult.error && (
               <tr>
                 <td colSpan={11} className="py-6 text-center text-red-600">
                   {t("error")}
@@ -130,13 +138,48 @@ function TasksContent() {
                   <td className="py-3 pr-4 font-medium text-ink">{abbreviateTeamType(match.homeTeam) || "—"}</td>
                   <td className="py-3 pr-4 text-ink-muted">{awayLabel ?? "—"}</td>
                   <td className="py-3 pr-4 text-ink-muted">{formatFieldType(match.field)}</td>
-                  <td className="whitespace-nowrap py-3 pr-4 text-ink">{assigneeName(match.tasks?.referee1, { isReferee: true, homeTeam: match.homeTeam })}</td>
-                  <td className="whitespace-nowrap py-3 pr-4 text-ink">{assigneeName(match.tasks?.referee2, { isReferee: true, homeTeam: match.homeTeam })}</td>
-                  <td className="whitespace-nowrap py-3 pr-4 text-ink-muted">{assigneeName(match.tasks?.scorer)}</td>
-                  <td className="whitespace-nowrap py-3 pr-4 text-ink-muted">{assigneeName(match.tasks?.timer)}</td>
+                  <td className="whitespace-nowrap py-3 pr-4 text-ink">
+                    <EditableAssignmentCell
+                      assignee={match.tasks?.referee1}
+                      members={members}
+                      season={season}
+                      displayText={assigneeName(match.tasks?.referee1, { isReferee: true, homeTeam: match.homeTeam })}
+                    />
+                  </td>
+                  <td className="whitespace-nowrap py-3 pr-4 text-ink">
+                    <EditableAssignmentCell
+                      assignee={match.tasks?.referee2}
+                      members={members}
+                      season={season}
+                      displayText={assigneeName(match.tasks?.referee2, { isReferee: true, homeTeam: match.homeTeam })}
+                    />
+                  </td>
+                  <td className="whitespace-nowrap py-3 pr-4 text-ink-muted">
+                    <EditableAssignmentCell
+                      assignee={match.tasks?.scorer}
+                      members={members}
+                      season={season}
+                      displayText={assigneeName(match.tasks?.scorer)}
+                    />
+                  </td>
+                  <td className="whitespace-nowrap py-3 pr-4 text-ink-muted">
+                    <EditableAssignmentCell
+                      assignee={match.tasks?.timer}
+                      members={members}
+                      season={season}
+                      displayText={assigneeName(match.tasks?.timer)}
+                    />
+                  </td>
                   <td className="whitespace-nowrap py-3 text-ink-muted">
                     {["D1", "D2", "D3", "H1", "H2", "H3", "H4"].includes(abbreviateTeamType(match.homeTeam))
-                      ? assigneeName(match.tasks?.shotClock)
+                      ? (
+                        <EditableAssignmentCell
+                          assignee={match.tasks?.shotClock}
+                          members={members}
+                          season={season}
+                          displayText={assigneeName(match.tasks?.shotClock)}
+                        />
+                      )
                       : "—"}
                   </td>
                 </tr>
@@ -146,5 +189,110 @@ function TasksContent() {
         </table>
       </div>
     </div>
+  );
+}
+
+function EditableAssignmentCell({
+  assignee,
+  members,
+  displayText,
+  season,
+}: {
+  assignee: TaskAssignee | null | undefined;
+  members: Member[];
+  displayText: string;
+  season: string;
+}) {
+  const [, upsertAssignment] = useMutation(UPSERT_TASK_ASSIGNMENT_MUTATION);
+  const [editing, setEditing] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState<string>("");
+  const [isPending, startTransition] = useTransition();
+
+  const assignmentId = assignee?.assignmentId ?? null;
+  const taskId = assignee?.taskId ?? null;
+  const currentUserId = assignee?.member?.id ?? null;
+  const isDraft = assignee?.status === "DRAFT";
+
+  const sortedMembers = useMemo(
+    () =>
+      [...members].sort((a, b) => {
+        const nameA = `${a.user.lastNamePrefix ?? ""} ${a.user.lastName ?? ""} ${a.user.firstName ?? ""}`;
+        const nameB = `${b.user.lastNamePrefix ?? ""} ${b.user.lastName ?? ""} ${b.user.firstName ?? ""}`;
+        return nameA.localeCompare(nameB);
+      }),
+    [members],
+  );
+
+  const handleSave = useCallback(() => {
+    if (!assignmentId || !taskId) return;
+    const memberId = selectedMemberId || null;
+    startTransition(() => {
+      void upsertAssignment({
+        assignmentId,
+        taskId,
+        memberId,
+        season,
+      }).then(() => {
+        setEditing(false);
+      });
+    });
+  }, [assignmentId, taskId, selectedMemberId, season, upsertAssignment]);
+
+  const handleCancel = useCallback(() => {
+    setEditing(false);
+    setSelectedMemberId("");
+  }, []);
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1">
+        <select
+          value={selectedMemberId}
+          onChange={(e) => setSelectedMemberId(e.target.value)}
+          className="border border-line bg-white px-1 py-0.5 text-[11px] text-ink"
+        >
+          <option value="">TBD</option>
+          {sortedMembers.map((m) => (
+            <option key={m.id} value={m.id}>
+              {abbreviateTeamType(m.primaryTeam)} {m.user.firstName} {m.user.lastNamePrefix ?? ""} {m.user.lastName ?? ""}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={handleSave}
+          disabled={isPending}
+          className="inline-flex text-green-600 transition-colors hover:text-green-800 disabled:opacity-50"
+          aria-label="Save"
+        >
+          <Check className="h-3 w-3" />
+        </button>
+        <button
+          onClick={handleCancel}
+          disabled={isPending}
+          className="inline-flex text-red-600 transition-colors hover:text-red-800 disabled:opacity-50"
+          aria-label="Cancel"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <span className="group inline-flex items-center gap-1">
+      {displayText}
+      {isDraft && assignmentId && taskId && currentUserId && (
+        <button
+          onClick={() => {
+            setSelectedMemberId(currentUserId);
+            setEditing(true);
+          }}
+          className="inline-flex text-ink-muted opacity-0 transition-opacity hover:text-accent group-hover:opacity-100"
+          aria-label="Edit assignment"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      )}
+    </span>
   );
 }

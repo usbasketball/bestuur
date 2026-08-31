@@ -4,6 +4,7 @@ import type {
   FieldType,
   MatchStatus,
   RefereeLevel,
+  TaskAssignmentStatus,
   TeamType,
 } from "@/lib/types";
 
@@ -42,11 +43,18 @@ export type TeamsResponse = Array<{
 }>;
 
 export type MatchTasks = {
-  referee1: Member | null;
-  referee2: Member | null;
-  scorer: Member | null;
-  timer: Member | null;
-  shotClock: Member | null;
+  referee1: TaskAssignee | null;
+  referee2: TaskAssignee | null;
+  scorer: TaskAssignee | null;
+  timer: TaskAssignee | null;
+  shotClock: TaskAssignee | null;
+};
+
+export type TaskAssignee = {
+  assignmentId: string;
+  taskId: string;
+  status: TaskAssignmentStatus;
+  member: Member | null;
 };
 
 export type Match = {
