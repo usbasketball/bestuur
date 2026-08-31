@@ -1,78 +1,54 @@
 import { gql } from "urql";
 
-export const TASKS_QUERY = gql`
-  query Tasks($season: String) {
-    tasks(season: $season) {
-      matchId
-      foysMatchId
-      matchDate
-      matchStartTime
-      homeTeam
-      awayOrganisationName
-      awayTeamName
-      referees {
-        isDouble
-        name
-      }
-      tableScorer
-      tableTimer
-      table24s
-    }
-  }
-`;
-
 export const MATCHES_QUERY = gql`
   query Matches($season: String) {
     matches(season: $season) {
-      homeTeams {
-        foysCompetitionTeamId
-        name
-        teamType
-      }
-      matches {
-        id
-        foysMatchId
-        status
-        date
-        startTime
-        homeScore
-        awayScore
-        homeTeamFoysId
-        awayTeamFoysId
-        awayTeamName
-        awayOrganisationName
-        field
+      id
+      foysMatchId
+      status
+      date
+      startTime
+      homeScore
+      awayScore
+      homeTeam
+      awayTeam { foysId name organisation { name foysId } }
+      field
+      tasks {
+        referee1 { user { firstName lastNamePrefix lastName } primaryTeam }
+        referee2 { user { firstName lastNamePrefix lastName } primaryTeam }
+        scorer { user { firstName lastNamePrefix lastName } primaryTeam }
+        timer { user { firstName lastNamePrefix lastName } primaryTeam }
+        shotClock { user { firstName lastNamePrefix lastName } primaryTeam }
       }
     }
   }
 `;
 
 export const MEMBERS_QUERY = gql`
-  query Members {
-    members {
+  query Members($season: String) {
+    members(season: $season) {
       id
-      email
-      firstName
-      lastNamePrefix
-      lastName
-      nbbNumber
-      refereeLevel
-      foysUserId
-      memberSince
-      memberships {
-        membershipType
-        primaryTeam
-      }
-      coaches {
-        team
+      season
+      primaryTeam
+      coachingTeams
+      committees
+      user {
+        email
+        firstName
+        lastNamePrefix
+        lastName
+        nbbNumber
+        refereeLevel
+        foysUserId
+        memberSince
       }
     }
   }
 `;
 
 export const TEAMS_QUERY = gql`
-  query Teams {
-    teams {
+  query Teams($season: String) {
+    teams(season: $season) {
       id
       foysCompetitionTeamId
       foysTeamId
@@ -87,34 +63,20 @@ export const TEAMS_QUERY = gql`
 export const ACTIVE_MEMBERS_QUERY = gql`
   query ActiveMembers($season: String) {
     activeMembers(season: $season) {
-      coaches {
-        id
-        team
-        user {
-          firstName
-          lastNamePrefix
-          lastName
-          nbbNumber
-        }
-      }
-      committees {
-        id
-        type
-        user {
-          firstName
-          lastNamePrefix
-          lastName
-          nbbNumber
-        }
-      }
-      hallDuties {
-        id
-        user {
-          firstName
-          lastNamePrefix
-          lastName
-          nbbNumber
-        }
+      id
+      season
+      primaryTeam
+      coachingTeams
+      committees
+      user {
+        email
+        firstName
+        lastNamePrefix
+        lastName
+        nbbNumber
+        refereeLevel
+        foysUserId
+        memberSince
       }
     }
   }

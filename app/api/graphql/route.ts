@@ -5,7 +5,10 @@ import { resolvers } from "@/lib/graphql/resolvers";
 import { requireBestuur } from "@/lib/api-auth";
 
 const yoga = createYoga({
-  schema: makeExecutableSchema({ typeDefs, resolvers }),
+  schema: makeExecutableSchema({
+    typeDefs,
+    resolvers: resolvers as Parameters<typeof makeExecutableSchema>[0]["resolvers"],
+  }),
   graphqlEndpoint: "/api/graphql",
   fetchAPI: { Response, Request, ReadableStream },
 });

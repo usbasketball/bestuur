@@ -1,40 +1,9 @@
 export const typeDefs = /* GraphQL */ `
   type Query {
-    tasks(season: String): [TaskScheduleMatch!]!
-    matches(season: String): Matches!
-    members: [Member!]!
-    teams: [Team!]!
-    activeMembers(season: String): ActiveMembers!
-  }
-
-  type TaskScheduleMatch {
-    matchId: ID!
-    foysMatchId: Int!
-    matchDate: String!
-    matchStartTime: String
-    homeTeam: String
-    awayOrganisationName: String
-    awayTeamName: String
-    referees: [TaskReferee!]!
-    tableScorer: String
-    tableTimer: String
-    table24s: String
-  }
-
-  type TaskReferee {
-    isDouble: Boolean!
-    name: String
-  }
-
-  type Matches {
-    homeTeams: [HomeTeam!]!
-    matches: [Match!]!
-  }
-
-  type HomeTeam {
-    foysCompetitionTeamId: Int!
-    name: String
-    teamType: TeamType!
+    matches(season: String): [Match]!
+    members(season: String): [Member!]!
+    teams(season: String): [Team!]!
+    activeMembers(season: String): [Member!]!
   }
 
   type Match {
@@ -45,34 +14,50 @@ export const typeDefs = /* GraphQL */ `
     startTime: String
     homeScore: Int
     awayScore: Int
-    homeTeamFoysId: Int!
-    awayTeamFoysId: Int!
-    awayTeamName: String
-    awayOrganisationName: String
+    homeTeam: TeamType!
+    awayTeam: NbbTeam!
     field: FieldType
+    tasks: MatchTasks!
   }
 
-  type Member {
+  type MatchTasks {
+    referee1: Member
+    referee2: Member
+    scorer: Member
+    timer: Member
+    shotClock: Member
+  }
+
+  type NbbTeam {
+    foysId: Int!
+    name: String
+    organisation: NbbOrganisation
+  }
+
+  type NbbOrganisation {
+    name: String!
+    foysId: UUID!
+  }
+
+  type User {
     id: ID!
     email: String!
     firstName: String
     lastNamePrefix: String
     lastName: String
     nbbNumber: String
-    refereeLevel: String
+    refereeLevel: RefereeLevel
     foysUserId: String
     memberSince: String
-    memberships: [MemberMembership!]!
-    coaches: [MemberCoach!]!
   }
 
-  type MemberMembership {
-    membershipType: ClubMembershipType!
+  type Member {
+    id: ID!
+    user: User!
+    season: String!
     primaryTeam: TeamType
-  }
-
-  type MemberCoach {
-    team: TeamType!
+    coachingTeams: [TeamType!]!
+    committees: [CommitteeType!]!
   }
 
   type Team {
@@ -83,36 +68,6 @@ export const typeDefs = /* GraphQL */ `
     season: String!
     teamType: TeamType!
     discipline: Discipline!
-  }
-
-  type ActiveMembers {
-    coaches: [ActiveCoach!]!
-    committees: [ActiveCommittee!]!
-    hallDuties: [ActiveHallDuty!]!
-  }
-
-  type ActiveCoach {
-    id: ID!
-    team: TeamType
-    user: ActiveMemberUser!
-  }
-
-  type ActiveCommittee {
-    id: ID!
-    type: CommitteeType!
-    user: ActiveMemberUser!
-  }
-
-  type ActiveHallDuty {
-    id: ID!
-    user: ActiveMemberUser!
-  }
-
-  type ActiveMemberUser {
-    firstName: String
-    lastNamePrefix: String
-    lastName: String
-    nbbNumber: String
   }
 
   enum TeamType {
@@ -130,6 +85,16 @@ export const typeDefs = /* GraphQL */ `
     MSE6
     V3x3
   }
+
+  enum RefereeLevel {
+    F
+    BS2
+    E
+    BS3
+    BS4
+  }
+
+  scalar UUID
 
   enum Discipline {
     DISCIPLINE_5x5
@@ -162,5 +127,13 @@ export const typeDefs = /* GraphQL */ `
     BOARD_GAME_SECRETARY
     BOARD_GENERAL_MEMBER
     OMNI
+  }
+
+  enum TaskType {
+    HALL_DUTY
+    REFEREE
+    TABLE_SCORER
+    TABLE_TIMER
+    TABLE_24S_SHOT_CLOCK
   }
 `;

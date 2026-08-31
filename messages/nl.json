@@ -43,17 +43,13 @@
       "count": "{count, plural, =0 {Geen leden} one {# lid} other {# leden}}",
       "columns": {
         "name": "Naam",
-        "membershipType": "Comp",
         "email": "E-mail",
         "nbb": "NBB nr.",
         "refereeLevel": "Scheidsrechtersniveau",
         "memberSince": "Lid sinds",
         "primaryTeam": "Team",
-        "coachedTeam": "Coach"
-      },
-      "membershipTypes": {
-        "COMPETITION": "Competitie",
-        "RECREATIONAL": "Recreatief"
+        "coachedTeam": "Coach",
+        "committees": "Commissies"
       },
       "filter": {
         "label": "Teamtype",
@@ -90,18 +86,9 @@
       "columns": {
         "nbb": "NBB nr.",
         "name": "Naam",
-        "type": "Type",
-        "team": "Team"
-      },
-      "types": {
-        "COACH": "Coach",
-        "HALL_DUTY": "Zaalwacht",
-        "BOARD_CHAIRPERSON": "Bestuur - Voorzitter",
-        "BOARD_SECRETARY": "Bestuur - Secretaris",
-        "BOARD_TREASURER": "Bestuur - Penningmeester",
-        "BOARD_GAME_SECRETARY": "Bestuur - Wedstrijdsecretaris",
-        "BOARD_GENERAL_MEMBER": "Bestuur - Algemeen lid",
-        "OMNI": "OMNI"
+        "email": "E-mail",
+        "primaryTeam": "Team",
+        "coachingTeams": "Coach"
       }
     },
     "matches": {
@@ -130,6 +117,7 @@
         "time": "Tijd",
         "homeTeam": "Thuis",
         "awayTeam": "Uit",
+        "field": "Veld",
         "ref1": "Ref 1",
         "ref2": "Ref 2",
         "tableScorer": "Tafelscorer",

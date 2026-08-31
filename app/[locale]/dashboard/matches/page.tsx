@@ -38,15 +38,7 @@ function MatchesContent() {
     requestPolicy: "network-only",
   });
   const loading = fetching;
-  const matchesData = data?.matches;
-
-  const homeTeamByFoysId = new Map(
-    (matchesData?.homeTeams ?? []).map(
-      (team) => [team.foysCompetitionTeamId, team.name ?? team.teamType] as const,
-    ),
-  );
-
-  const matches = matchesData?.matches ?? [];
+  const matches = data?.matches ?? [];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -90,12 +82,12 @@ function MatchesContent() {
               </tr>
             )}
             {matches.map((match) => {
-              const homeLabel =
-                homeTeamByFoysId.get(match.homeTeamFoysId) ??
-                String(match.homeTeamFoysId);
-              const awayLabel = match.awayOrganisationName
-                ? `${match.awayOrganisationName} - ${match.awayTeamName}`
-                : match.awayTeamName ?? String(match.awayTeamFoysId);
+              const homeLabel = match.homeTeam ?? "—";
+              const awayLabel = match.awayTeam
+                ? match.awayTeam.organisation
+                  ? `${match.awayTeam.organisation.name} - ${match.awayTeam.name}`
+                  : match.awayTeam.name ?? String(match.awayTeam.foysId)
+                : "—";
               const score =
                 match.homeScore != null
                   ? `${match.homeScore} – ${match.awayScore}`

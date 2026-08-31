@@ -10,12 +10,10 @@ export { FOYS_CLUB_ID, FOYS_BASE_URL, foysMemberUrl, foysTeamUrl, foysMatchUrl }
 export { SEASONS, seasonFromDate, type Season } from "./seasons";
 export { toPlainDateTime, toPlainDateTimeFromIso } from "./datetime";
 export type {
-  ActiveMemberUser,
   ActiveMembersResponse,
   MatchesResponse,
-  MemberCoach,
-  MemberMembership,
+  Member,
   MembersResponse,
+  MatchTasks,
   TeamsResponse,
-  TasksResponse,
 } from "./api";

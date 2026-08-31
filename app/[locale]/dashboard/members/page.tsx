@@ -3,10 +3,10 @@
 import { Suspense, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Check, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { useQuery } from "urql";
-import { CLUB_MEMBERSHIP_TYPES, foysMemberUrl, TEAM_TYPES } from "@/lib/types";
-import type { ClubMembershipType, MembersResponse, TeamType } from "@/lib/types";
+import { foysMemberUrl, TEAM_TYPES } from "@/lib/types";
+import type { MembersResponse, TeamType } from "@/lib/types";
 import TeamTypeSelect from "@/components/team-type-select";
 import { MEMBERS_QUERY } from "@/lib/graphql/queries";
 
@@ -26,7 +26,7 @@ function MembersContent() {
     query: MEMBERS_QUERY,
     requestPolicy: "network-only",
   });
-  const users = data?.members;
+  const members = data?.members;
   const loading = fetching;
 
   const rawTeamType = searchParams.get("team_type");
@@ -41,30 +41,21 @@ function MembersContent() {
     }
   }, [rawTeamType, teamType, router]);
 
-  const membershipRank = (type: ClubMembershipType | null | undefined): number => {
-    if (!type) return CLUB_MEMBERSHIP_TYPES.length;
-    const idx = CLUB_MEMBERSHIP_TYPES.indexOf(type);
-    return idx === -1 ? CLUB_MEMBERSHIP_TYPES.length : idx;
-  };
-
-  const sortedUsers = users ? [...users].sort((a, b) => {
-    const teamA = a.memberships[0]?.primaryTeam;
-    const teamB = b.memberships[0]?.primaryTeam;
+  const sortedMembers = members ? [...members].sort((a, b) => {
+    const teamA = a.primaryTeam;
+    const teamB = b.primaryTeam;
     if (teamA && teamB) {
       if (teamA !== teamB) return teamA.localeCompare(teamB);
-      return (
-        membershipRank(a.memberships[0]?.membershipType) -
-        membershipRank(b.memberships[0]?.membershipType)
-      );
+      return (a.user.firstName ?? "").localeCompare(b.user.firstName ?? "");
     }
     if (teamA) return -1;
     if (teamB) return 1;
     return 0;
   }) : [];
 
-  const filteredUsers = teamType
-    ? sortedUsers.filter((u) => u.memberships[0]?.primaryTeam === teamType)
-    : sortedUsers;
+  const filteredMembers = teamType
+    ? sortedMembers.filter((m) => m.primaryTeam === teamType)
+    : sortedMembers;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
@@ -75,7 +66,7 @@ function MembersContent() {
         <TeamTypeSelect />
       </div>
       <p className="mt-1 text-sm text-ink-muted">
-        {t("count", { count: filteredUsers.length })}
+        {t("count", { count: filteredMembers.length })}
       </p>
 
       <div className="mt-6 overflow-x-auto">
@@ -83,17 +74,12 @@ function MembersContent() {
           <thead>
             <tr className="border-b border-line text-xs uppercase tracking-wider text-ink-muted">
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium" aria-label={t("openInFoys")} />
-              <th
-                className="sticky top-0 bg-white pb-3 pr-4 font-medium"
-                title={t("membershipTypes.COMPETITION")}
-              >
-                {t("columns.membershipType")}
-              </th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.primaryTeam")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.name")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.email")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.nbb")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.coachedTeam")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.committees")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.refereeLevel")}</th>
               <th className="sticky top-0 bg-white pb-3 font-medium">{t("columns.memberSince")}</th>
             </tr>
@@ -113,12 +99,10 @@ function MembersContent() {
                 </td>
               </tr>
             )}
-            {filteredUsers.map((user) => {
-              const membership = user.memberships[0];
-              const membershipType = membership?.membershipType ?? null;
-              const primaryTeam = membership?.primaryTeam ?? null;
+            {filteredMembers.map((member) => {
+              const { user } = member;
               return (
-                <tr key={user.id} className="border-b border-line/50">
+                <tr key={member.id} className="border-b border-line/50">
                   <td className="py-3 pr-4">
                     {user.foysUserId && (
                       <a
@@ -132,18 +116,8 @@ function MembersContent() {
                       </a>
                     )}
                   </td>
-                  <td className="py-3 pr-4">
-                    {membershipType === "COMPETITION" && (
-                      <span title={t("membershipTypes.COMPETITION")}>
-                        <Check
-                          className="h-4 w-4 text-accent"
-                          aria-label={t("membershipTypes.COMPETITION")}
-                        />
-                      </span>
-                    )}
-                  </td>
                   <td className="py-3 pr-4 font-mono text-ink">
-                    {primaryTeam ?? "—"}
+                    {member.primaryTeam ?? "—"}
                   </td>
                   <td className="py-3 pr-4 text-ink">
                     {[user.firstName, user.lastNamePrefix, user.lastName]
@@ -155,8 +129,13 @@ function MembersContent() {
                     {user.nbbNumber ?? "—"}
                   </td>
                   <td className="py-3 pr-4 font-mono text-ink">
-                    {user.coaches.length > 0
-                      ? user.coaches.map((c) => c.team).join(", ")
+                    {member.coachingTeams.length > 0
+                      ? member.coachingTeams.join(", ")
+                      : "—"}
+                  </td>
+                  <td className="py-3 pr-4 text-ink-muted">
+                    {member.committees.length > 0
+                      ? member.committees.join(", ")
                       : "—"}
                   </td>
                   <td className="py-3 pr-4 text-ink-muted">
