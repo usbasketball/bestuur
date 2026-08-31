@@ -219,7 +219,8 @@ async function loadMatchData(season: Season) {
     "field",
   )
     .where((m) => m.homeTeamFoysId.in([...homeTeamFoysIds]))
-    .orderBy([(m) => m.date.asc(), (m) => m.startTime.asc()])
+    .where((m) => m.status.neq("WITHDRAWN"))
+    .orderBy([(m) => m.date.asc(), (m) => m.startTime.asc(), (m) => m.field.asc()])
     .all();
 
   const matchObjById = new Map<string, Record<string, unknown>>();

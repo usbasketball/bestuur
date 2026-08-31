@@ -23,3 +23,13 @@ export function mapTeamType(
   if (disciplines?.some((d) => d.name === "3x3 Basketball")) return "V3x3";
   return null;
 }
+
+// Abbreviate a TeamType for display: MSE2 → "H2", VSE4 → "D4",
+// V3x3 → "V3x3".
+export function abbreviateTeamType(teamType: string | null | undefined): string {
+  if (!teamType) return "";
+  const match = /^(MSE|VSE)(\d+)$/.exec(teamType.trim().toUpperCase());
+  if (!match) return teamType;
+  const prefix = match[1] === "MSE" ? "H" : "D";
+  return `${prefix}${match[2]}`;
+}
