@@ -32,6 +32,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type MatchTasks {
+    hallDuty: TaskAssignee
     referee1: TaskAssignee
     referee2: TaskAssignee
     scorer: TaskAssignee

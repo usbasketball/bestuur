@@ -43,6 +43,7 @@ export type TeamsResponse = Array<{
 }>;
 
 export type MatchTasks = {
+  hallDuty: TaskAssignee | null;
   referee1: TaskAssignee | null;
   referee2: TaskAssignee | null;
   scorer: TaskAssignee | null;

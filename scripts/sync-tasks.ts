@@ -175,13 +175,17 @@ export async function findUserByOfficial(db: Db, official: FoysOfficial): Promis
 }
 
 // Remove the previous roster for a match. Assignments go first to satisfy the
-// task_assignments foreign key, then the tasks themselves.
+// task_assignments foreign key, then the tasks themselves. Hall duty (zaaldienst)
+// tasks are NOT managed by FOYS, so they are preserved.
 export async function deleteMatchRoster(db: Db, matchId: string): Promise<void> {
-  const tasks = await db.orm.public.Task.select("id").where((t) => t.matchId.eq(matchId)).all();
+  const tasks = await db.orm.public.Task.select("id")
+    .where((t) => t.matchId.eq(matchId))
+    .where((t) => t.taskType.neq("HALL_DUTY"))
+    .all();
   const taskIds = tasks.map((t) => t.id);
   if (taskIds.length === 0) return;
   await db.orm.public.TaskAssignment.where((ta) => ta.taskId.in(taskIds)).deleteAndCount();
-  await db.orm.public.Task.where((t) => t.matchId.eq(matchId)).deleteAndCount();
+  await db.orm.public.Task.where((t) => t.id.in(taskIds)).deleteAndCount();
 }
 
 export async function createTask(
@@ -269,6 +273,9 @@ async function main(): Promise<void> {
     for (const official of officials) {
       const taskType = mapRoleToTaskType(official.officialRoleName);
       if (!taskType) continue;
+      // Hall duty (zaaldienst) is not recorded in FOYS and is managed manually
+      // via the web app, so never sync it from FOYS.
+      if (taskType === "HALL_DUTY") continue;
 
       const userId = await findUserByOfficial(db, official);
       const external = userId === null;

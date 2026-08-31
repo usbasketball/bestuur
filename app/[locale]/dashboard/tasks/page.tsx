@@ -92,6 +92,7 @@ function TasksContent() {
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.homeTeam")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.awayTeam")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.field")}</th>
+              <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.hallDuty")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.ref1")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.ref2")}</th>
               <th className="sticky top-0 bg-white pb-3 pr-4 font-medium">{t("columns.tableScorer")}</th>
@@ -102,14 +103,14 @@ function TasksContent() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={11} className="py-6 text-center text-ink-muted">
+                <td colSpan={12} className="py-6 text-center text-ink-muted">
                   {t("loading")}
                 </td>
               </tr>
             )}
             {matchesResult.error && (
               <tr>
-                <td colSpan={11} className="py-6 text-center text-red-600">
+                <td colSpan={12} className="py-6 text-center text-red-600">
                   {t("error")}
                 </td>
               </tr>
@@ -138,6 +139,14 @@ function TasksContent() {
                   <td className="py-3 pr-4 font-medium text-ink">{abbreviateTeamType(match.homeTeam) || "—"}</td>
                   <td className="py-3 pr-4 text-ink-muted">{awayLabel ?? "—"}</td>
                   <td className="py-3 pr-4 text-ink-muted">{formatFieldType(match.field)}</td>
+                  <td className="whitespace-nowrap py-3 pr-4 text-ink-muted">
+                    <EditableAssignmentCell
+                      assignee={match.tasks?.hallDuty}
+                      members={members}
+                      season={season}
+                      displayText={assigneeName(match.tasks?.hallDuty)}
+                    />
+                  </td>
                   <td className="whitespace-nowrap py-3 pr-4 text-ink">
                     <EditableAssignmentCell
                       assignee={match.tasks?.referee1}
@@ -216,9 +225,12 @@ function EditableAssignmentCell({
   const sortedMembers = useMemo(
     () =>
       [...members].sort((a, b) => {
-        const nameA = `${a.user.lastNamePrefix ?? ""} ${a.user.lastName ?? ""} ${a.user.firstName ?? ""}`;
-        const nameB = `${b.user.lastNamePrefix ?? ""} ${b.user.lastName ?? ""} ${b.user.firstName ?? ""}`;
-        return nameA.localeCompare(nameB);
+        const teamA = abbreviateTeamType(a.primaryTeam) ?? "";
+        const teamB = abbreviateTeamType(b.primaryTeam) ?? "";
+        if (teamA !== teamB) return teamA.localeCompare(teamB);
+        const firstA = (a.user.firstName ?? "").toLowerCase();
+        const firstB = (b.user.firstName ?? "").toLowerCase();
+        return firstA.localeCompare(firstB);
       }),
     [members],
   );

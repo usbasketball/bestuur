@@ -185,7 +185,7 @@ function buildMatch(match: MatchRow, homeTeamTypeByFoysId: Map<number, string | 
         : null,
     },
     field: match.field,
-    tasks: { referee1: null, referee2: null, scorer: null, timer: null, shotClock: null },
+    tasks: { hallDuty: null, referee1: null, referee2: null, scorer: null, timer: null, shotClock: null },
   };
 }
 
@@ -268,8 +268,10 @@ async function loadMatchData(season: Season) {
   for (const t of taskRows) {
     const m = matchObjById.get(t.taskMatchId);
     if (!m) continue;
-    const tasks = m.tasks as { referee1: unknown; referee2: unknown; scorer: unknown; timer: unknown; shotClock: unknown };
-    if (t.taskType === "REFEREE") {
+    const tasks = m.tasks as { hallDuty: unknown; referee1: unknown; referee2: unknown; scorer: unknown; timer: unknown; shotClock: unknown };
+    if (t.taskType === "HALL_DUTY") {
+      tasks.hallDuty = t.assignment;
+    } else if (t.taskType === "REFEREE") {
       if (!tasks.referee1) tasks.referee1 = t.assignment;
       else if (!tasks.referee2) tasks.referee2 = t.assignment;
     } else if (t.taskType === "TABLE_SCORER") {
