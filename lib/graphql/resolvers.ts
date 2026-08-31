@@ -219,7 +219,8 @@ async function loadMatchData(season: Season) {
     "field",
   )
     .where((m) => m.homeTeamFoysId.in([...homeTeamFoysIds]))
-    .orderBy([(m) => m.date.asc(), (m) => m.startTime.asc()])
+    .where((m) => m.status.neq("WITHDRAWN"))
+    .orderBy([(m) => m.date.asc(), (m) => m.startTime.asc(), (m) => m.field.asc()])
     .all();
 
   const matchObjById = new Map<string, Record<string, unknown>>();
@@ -233,6 +234,7 @@ async function loadMatchData(season: Season) {
     "userId",
     "nbbNumber",
     "isDouble",
+    "status",
   )
     .include("task", (t) => t.select("id", "taskType", "matchId"))
     .include("user", (u) =>
@@ -257,7 +259,10 @@ async function loadMatchData(season: Season) {
     .map((a) => ({
       taskMatchId: a.task.matchId,
       taskType: a.task.taskType,
-      assignment: a.user ? memberRecord(buildUser(a.user), season, memberCtx) : null,
+      taskId: a.taskId,
+      assignment: a.user
+        ? { assignmentId: a.id, taskId: a.taskId, status: a.status, member: memberRecord(buildUser(a.user), season, memberCtx) }
+        : { assignmentId: a.id, taskId: a.taskId, status: a.status, member: null },
     }));
 
   for (const t of taskRows) {
@@ -282,6 +287,9 @@ async function loadMatchData(season: Season) {
 
 export const resolvers: ResolverMap = {
   UUID,
+  TaskAssignee: {
+    member: (parent: { assignmentId: string; member: unknown }) => parent.member,
+  },
   Query: {
     matches: async (_parent: unknown, args: { season?: string }) => {
       const season = normalizeSeason(args.season);
@@ -355,6 +363,82 @@ export const resolvers: ResolverMap = {
       const users = await loadUsers(userIds);
 
       return users.map((user) => memberRecord(user, season, ctx));
+    },
+  },
+
+  Mutation: {
+    upsertTaskAssignment: async (
+      _parent: unknown,
+      args: { assignmentId?: string | null; taskId: string; memberId?: string | null; season: string },
+    ) => {
+      const { assignmentId, taskId, memberId } = args;
+      const season = normalizeSeason(args.season);
+
+      const assignment = assignmentId
+        ? await db.orm.public.TaskAssignment.where((a) => a.id.eq(assignmentId)).first()
+        : null;
+
+      if (assignmentId && !assignment) {
+        throw new Error("Assignment not found");
+      }
+
+      if (assignment && assignment.status !== "DRAFT") {
+        throw new Error("Assignment is not in DRAFT status");
+      }
+
+      const task = await db.orm.public.Task.where((t) => t.id.eq(taskId)).first();
+      if (!task) throw new Error("Task not found");
+
+      const newUserId = memberId ?? null;
+
+      // Delete conflicting assignment if the new user is already assigned to a different task
+      if (newUserId) {
+        const existingForUser = await db.orm.public.TaskAssignment.where(
+          (a) => a.taskId.neq(taskId),
+        ).where((a) => a.userId.eq(newUserId)).first();
+        if (existingForUser) {
+          await db.orm.public.TaskAssignment.where((a) => a.id.eq(existingForUser.id)).deleteAndCount();
+        }
+      }
+
+      if (assignment) {
+        // Update existing assignment: remove any other assignment on this task first
+        const existingOnTask = await db.orm.public.TaskAssignment.where(
+          (a) => a.taskId.eq(taskId),
+        ).where((a) => a.id.neq(assignment.id)).first();
+        if (existingOnTask) {
+          await db.orm.public.TaskAssignment.where((a) => a.id.eq(existingOnTask.id)).deleteAndCount();
+        }
+        await db.orm.public.TaskAssignment.where((a) => a.id.eq(assignment.id)).update({
+          userId: newUserId,
+          nbbNumber: null,
+        });
+      } else {
+        // Create new assignment
+        await db.orm.public.TaskAssignment.create({
+          taskId,
+          userId: newUserId,
+          nbbNumber: null,
+          isDouble: false,
+          status: "DRAFT",
+        });
+      }
+
+      // Fetch updated assignment with user
+      const updated = await db.orm.public.TaskAssignment.where(
+        (a) => a.taskId.eq(taskId),
+      ).first();
+
+      if (!updated) throw new Error("Failed to upsert assignment");
+
+      const memberCtx = await loadMemberContext(season);
+      let member = null;
+      if (updated.userId) {
+        const users = await loadUsers([updated.userId]);
+        if (users[0]) member = memberRecord(users[0], season, memberCtx);
+      }
+
+      return { assignmentId: updated.id, taskId, status: updated.status, member };
     },
   },
 };

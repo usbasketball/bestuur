@@ -12,8 +12,10 @@
 //    No placeholder users are created.
 //
 // Usage:
-//   npm run sync:tasks              # dry run (default)
+//   npm run sync:tasks              # dry run (default), current season
+//   npm run sync:tasks -- --season 2025-2026   # filter by season
 //   npm run sync:tasks -- --live    # actually write to the database
+//   npm run sync:tasks -- --live --season 2025-2026   # combined
 //
 // Required env vars (in .env.local / .env):
 //   DATABASE_URL   PostgreSQL connection string
@@ -28,10 +30,17 @@ import "temporal-polyfill/full/global";
 import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "../prisma/contract.d";
 import contractJson from "../prisma/contract.json";
-import type { TaskType } from "../lib/types";
+import { SEASONS, type Season, type TaskAssignmentStatus, type TaskType } from "../lib/types";
 import { isMainModule } from "../lib/is-main";
 
 const dryRun = !process.argv.includes("--live");
+const args = process.argv.slice(2);
+function getArg(name: string): string | undefined {
+  const idx = args.indexOf(name);
+  return idx !== -1 ? args[idx + 1] : undefined;
+}
+const seasonArg = getArg("--season");
+const season: Season = (SEASONS.includes(seasonArg as Season) ? seasonArg : SEASONS[0]) as Season;
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(rootDir, ".env.local") });
@@ -59,6 +68,8 @@ const FOYS_MATCH_OFFICIALS_API = (matchId: number) =>
 
 interface FoysOfficial {
   id: number;
+  status: string | null;
+  officialRoleId: number | null;
   officialRoleName: string | null;
   person: {
     id: string;
@@ -66,6 +77,7 @@ interface FoysOfficial {
     federationMembershipIdentifier: string | null;
     email: string | null;
   } | null;
+  federationMembershipIdentifier: string | null;
   [key: string]: unknown;
 }
 
@@ -103,6 +115,14 @@ export function mapRoleToTaskType(role: string | null | undefined): TaskType | n
   return null;
 }
 
+// Map a FOYS official status to a TaskAssignmentStatus. Unknown statuses
+// default to DRAFT.
+export function mapStatusToTaskAssignmentStatus(
+  status: string | null | undefined,
+): TaskAssignmentStatus {
+  return status?.toLowerCase() === "planned" ? "PLANNED" : "DRAFT";
+}
+
 // ── Artifacts (local dev inspection) ──────────────────────────────────────────
 
 const ARTIFACTS_DIR = path.join(rootDir, "scripts", "artifacts", "tasks");
@@ -123,9 +143,18 @@ interface MatchRow {
   foysMatchId: number;
 }
 
-export async function queryCompetitionMatches(db: Db): Promise<MatchRow[]> {
+export async function queryCompetitionMatches(db: Db, season: Season): Promise<MatchRow[]> {
+  const homeTeamFoysIds = (
+    await db.orm.public.Team.select("foysCompetitionTeamId")
+      .where((t) => t.season.eq(season))
+      .all()
+  ).map((t) => t.foysCompetitionTeamId);
+
+  if (homeTeamFoysIds.length === 0) return [];
+
   return db.orm.public.Match.select("id", "foysMatchId")
     .where((m) => m.competitionId.isNotNull())
+    .where((m) => m.homeTeamFoysId.in(homeTeamFoysIds))
     .all();
 }
 
@@ -155,22 +184,30 @@ export async function deleteMatchRoster(db: Db, matchId: string): Promise<void> 
   await db.orm.public.Task.where((t) => t.matchId.eq(matchId)).deleteAndCount();
 }
 
-export async function createTask(db: Db, p: { matchId: string; taskType: TaskType }): Promise<string> {
-  const task = await db.orm.public.Task.create({ matchId: p.matchId, taskType: p.taskType });
+export async function createTask(
+  db: Db,
+  p: { matchId: string; taskType: TaskType; foysTaskId: number },
+): Promise<string> {
+  const task = await db.orm.public.Task.create({
+    matchId: p.matchId,
+    taskType: p.taskType,
+    foysTaskId: p.foysTaskId,
+  });
   return task.id;
 }
 
 // Record an assignment for a task: by local user when linked, otherwise by the
-// external official's NBB number.
+// external official's NBB number. The status mirrors the FOYS official status.
 export async function createAssignment(
   db: Db,
-  p: { taskId: string; userId: string | null; nbbNumber: string | null },
+  p: { taskId: string; userId: string | null; nbbNumber: string | null; status: TaskAssignmentStatus },
 ): Promise<void> {
   await db.orm.public.TaskAssignment.create({
     taskId: p.taskId,
     userId: p.userId,
     nbbNumber: p.nbbNumber,
     isDouble: false,
+    status: p.status,
   });
 }
 
@@ -188,7 +225,8 @@ async function main(): Promise<void> {
 
   let matches: MatchRow[] = [];
   try {
-    matches = await queryCompetitionMatches(db);
+    console.log(`Season: ${season}`);
+    matches = await queryCompetitionMatches(db, season);
     console.log(`Found ${matches.length} competition matches.\n`);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
@@ -246,11 +284,16 @@ async function main(): Promise<void> {
       }
 
       try {
-        const taskId = await createTask(db, { matchId: match.id, taskType });
+        const taskId = await createTask(db, {
+          matchId: match.id,
+          taskType,
+          foysTaskId: official.id,
+        });
         await createAssignment(db, {
           taskId,
           userId,
           nbbNumber: official.person?.federationMembershipIdentifier ?? null,
+          status: mapStatusToTaskAssignmentStatus(official.status),
         });
         assignmentsCreated++;
         if (external) externalAssignments++;

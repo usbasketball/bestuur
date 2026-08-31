@@ -6,6 +6,10 @@ export const typeDefs = /* GraphQL */ `
     activeMembers(season: String): [Member!]!
   }
 
+  type Mutation {
+    upsertTaskAssignment(assignmentId: ID, taskId: ID!, memberId: ID, season: String!): TaskAssignee!
+  }
+
   type Match {
     id: ID!
     foysMatchId: Int!
@@ -20,12 +24,19 @@ export const typeDefs = /* GraphQL */ `
     tasks: MatchTasks!
   }
 
+  type TaskAssignee {
+    assignmentId: ID!
+    taskId: ID!
+    status: TaskAssignmentStatus!
+    member: Member
+  }
+
   type MatchTasks {
-    referee1: Member
-    referee2: Member
-    scorer: Member
-    timer: Member
-    shotClock: Member
+    referee1: TaskAssignee
+    referee2: TaskAssignee
+    scorer: TaskAssignee
+    timer: TaskAssignee
+    shotClock: TaskAssignee
   }
 
   type NbbTeam {
@@ -135,5 +146,10 @@ export const typeDefs = /* GraphQL */ `
     TABLE_SCORER
     TABLE_TIMER
     TABLE_24S_SHOT_CLOCK
+  }
+
+  enum TaskAssignmentStatus {
+    PLANNED
+    DRAFT
   }
 `;

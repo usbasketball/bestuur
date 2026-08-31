@@ -14,11 +14,11 @@ export const MATCHES_QUERY = gql`
       awayTeam { foysId name organisation { name foysId } }
       field
       tasks {
-        referee1 { user { firstName lastNamePrefix lastName } primaryTeam }
-        referee2 { user { firstName lastNamePrefix lastName } primaryTeam }
-        scorer { user { firstName lastNamePrefix lastName } primaryTeam }
-        timer { user { firstName lastNamePrefix lastName } primaryTeam }
-        shotClock { user { firstName lastNamePrefix lastName } primaryTeam }
+        referee1 { assignmentId taskId status member { id user { firstName lastNamePrefix lastName } primaryTeam } }
+        referee2 { assignmentId taskId status member { id user { firstName lastNamePrefix lastName } primaryTeam } }
+        scorer { assignmentId taskId status member { id user { firstName lastNamePrefix lastName } primaryTeam } }
+        timer { assignmentId taskId status member { id user { firstName lastNamePrefix lastName } primaryTeam } }
+        shotClock { assignmentId taskId status member { id user { firstName lastNamePrefix lastName } primaryTeam } }
       }
     }
   }
@@ -77,6 +77,19 @@ export const ACTIVE_MEMBERS_QUERY = gql`
         refereeLevel
         foysUserId
         memberSince
+      }
+    }
+  }
+`;
+
+export const UPSERT_TASK_ASSIGNMENT_MUTATION = gql`
+  mutation UpsertTaskAssignment($assignmentId: ID, $taskId: ID!, $memberId: ID, $season: String!) {
+    upsertTaskAssignment(assignmentId: $assignmentId, taskId: $taskId, memberId: $memberId, season: $season) {
+      assignmentId
+      member {
+        id
+        user { firstName lastNamePrefix lastName }
+        primaryTeam
       }
     }
   }
