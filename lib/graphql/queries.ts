@@ -14,6 +14,7 @@ export const MATCHES_QUERY = gql`
       awayTeam { foysId name organisation { name foysId } }
       field
       tasks {
+        hallDuty { assignmentId taskId status member { id user { firstName lastNamePrefix lastName } primaryTeam } }
         referee1 { assignmentId taskId status member { id user { firstName lastNamePrefix lastName } primaryTeam } }
         referee2 { assignmentId taskId status member { id user { firstName lastNamePrefix lastName } primaryTeam } }
         scorer { assignmentId taskId status member { id user { firstName lastNamePrefix lastName } primaryTeam } }

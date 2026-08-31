@@ -4,6 +4,7 @@ export const typeDefs = /* GraphQL */ `
     members(season: String): [Member!]!
     teams(season: String): [Team!]!
     activeMembers(season: String): [Member!]!
+    me: User
   }
 
   type Mutation {
@@ -32,6 +33,7 @@ export const typeDefs = /* GraphQL */ `
   }
 
   type MatchTasks {
+    hallDuty: TaskAssignee
     referee1: TaskAssignee
     referee2: TaskAssignee
     scorer: TaskAssignee

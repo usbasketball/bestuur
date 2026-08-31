@@ -1,6 +1,7 @@
 import { GraphQLScalarType, Kind } from "graphql";
 import { db } from "@/lib/db";
 import { SEASONS, type Season, type TeamType, type CommitteeType } from "@/lib/types";
+import { assertBestuur, requireSession } from "@/lib/api-auth";
 
 type ResolverMap = Record<string, unknown>;
 
@@ -185,7 +186,7 @@ function buildMatch(match: MatchRow, homeTeamTypeByFoysId: Map<number, string | 
         : null,
     },
     field: match.field,
-    tasks: { referee1: null, referee2: null, scorer: null, timer: null, shotClock: null },
+    tasks: { hallDuty: null, referee1: null, referee2: null, scorer: null, timer: null, shotClock: null },
   };
 }
 
@@ -268,8 +269,10 @@ async function loadMatchData(season: Season) {
   for (const t of taskRows) {
     const m = matchObjById.get(t.taskMatchId);
     if (!m) continue;
-    const tasks = m.tasks as { referee1: unknown; referee2: unknown; scorer: unknown; timer: unknown; shotClock: unknown };
-    if (t.taskType === "REFEREE") {
+    const tasks = m.tasks as { hallDuty: unknown; referee1: unknown; referee2: unknown; scorer: unknown; timer: unknown; shotClock: unknown };
+    if (t.taskType === "HALL_DUTY") {
+      tasks.hallDuty = t.assignment;
+    } else if (t.taskType === "REFEREE") {
       if (!tasks.referee1) tasks.referee1 = t.assignment;
       else if (!tasks.referee2) tasks.referee2 = t.assignment;
     } else if (t.taskType === "TABLE_SCORER") {
@@ -292,12 +295,14 @@ export const resolvers: ResolverMap = {
   },
   Query: {
     matches: async (_parent: unknown, args: { season?: string }) => {
+      await assertBestuur();
       const season = normalizeSeason(args.season);
       const { matches } = await loadMatchData(season);
       return matches;
     },
 
     members: async (_parent: unknown, args: { season?: string }) => {
+      await assertBestuur();
       const season = normalizeSeason(args.season);
 
       const memberships = await db.orm.public.ClubMembership.select("userId")
@@ -310,6 +315,7 @@ export const resolvers: ResolverMap = {
     },
 
     teams: async (_parent: unknown, args: { season?: string }) => {
+      await assertBestuur();
       const season = normalizeSeason(args.season);
 
       const teams = await db.orm.public.Team.select(
@@ -337,6 +343,7 @@ export const resolvers: ResolverMap = {
     },
 
     activeMembers: async (_parent: unknown, args: { season?: string }) => {
+      await assertBestuur();
       const season = normalizeSeason(args.season);
 
       const [coaches, committees, hallDuties] = await Promise.all([
@@ -364,6 +371,28 @@ export const resolvers: ResolverMap = {
 
       return users.map((user) => memberRecord(user, season, ctx));
     },
+
+    me: async () => {
+      const session = await requireSession();
+      const sub = session.user.sub;
+      if (!sub) return null;
+
+      const user = await db.orm.public.User.select(
+        "id",
+        "email",
+        "firstName",
+        "lastNamePrefix",
+        "lastName",
+        "nbbNumber",
+        "refereeLevel",
+        "foysUserId",
+        "memberSince",
+      )
+        .where((u) => u.auth0Sub.eq(sub))
+        .first();
+
+      return user ? buildUser(user) : null;
+    },
   },
 
   Mutation: {
@@ -371,6 +400,7 @@ export const resolvers: ResolverMap = {
       _parent: unknown,
       args: { assignmentId?: string | null; taskId: string; memberId?: string | null; season: string },
     ) => {
+      await assertBestuur();
       const { assignmentId, taskId, memberId } = args;
       const season = normalizeSeason(args.season);
 

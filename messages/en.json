@@ -118,6 +118,7 @@
         "homeTeam": "Home",
         "awayTeam": "Away",
         "field": "Field",
+        "hallDuty": "Hall duty",
         "ref1": "Ref 1",
         "ref2": "Ref 2",
         "tableScorer": "Table scorer",

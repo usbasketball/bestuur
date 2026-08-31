@@ -2,7 +2,7 @@ import { createYoga } from "graphql-yoga";
 import { makeExecutableSchema } from "@graphql-tools/schema";
 import { typeDefs } from "@/lib/graphql/schema";
 import { resolvers } from "@/lib/graphql/resolvers";
-import { requireBestuur } from "@/lib/api-auth";
+import { requireAuthenticated } from "@/lib/api-auth";
 
 const yoga = createYoga({
   schema: makeExecutableSchema({
@@ -14,13 +14,13 @@ const yoga = createYoga({
 });
 
 export async function GET(request: Request) {
-  const unauthorized = await requireBestuur();
+  const unauthorized = await requireAuthenticated();
   if (unauthorized) return unauthorized;
   return yoga.fetch(request);
 }
 
 export async function POST(request: Request) {
-  const unauthorized = await requireBestuur();
+  const unauthorized = await requireAuthenticated();
   if (unauthorized) return unauthorized;
   return yoga.fetch(request);
 }
