@@ -52,7 +52,7 @@ function getArg(name: string): string | undefined {
 }
 
 function required(name: string): string {
-  const value = getArg(name);
+  const value = getArg(`--${name}`);
   if (!value) {
     console.error(`Missing required argument --${name}`);
     process.exit(1);
@@ -64,7 +64,7 @@ const foysMatchId = Number(required("match"));
 const foysTaskId = Number(required("foys-task"));
 const nbbNumber = required("member").trim();
 const officialRoleId = Number(required("role-id"));
-const taskTypeArg = getArg("task-type");
+const taskTypeArg = getArg("--task-type");
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 dotenv.config({ path: path.join(rootDir, ".env.local") });

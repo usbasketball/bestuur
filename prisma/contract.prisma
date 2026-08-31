@@ -228,6 +228,7 @@ model TaskAssignment {
   userId    String?  @map("user_id")
   nbbNumber String?  @map("nbb_number")
   isDouble  Boolean  @default(false)
+  status    TaskAssignmentStatus @default(DRAFT) @map("status")
   createdAt Timestamp @default(now()) @map("created_at")
   updatedAt temporal.updatedAt() @map("updated_at")
 
@@ -237,6 +238,11 @@ model TaskAssignment {
   @@unique([taskId, userId])
   @@index([userId])
   @@map("task_assignments")
+}
+
+enum TaskAssignmentStatus {
+  PLANNED
+  DRAFT
 }
 
 model HistoricTaskBalance {

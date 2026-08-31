@@ -30,7 +30,7 @@ import "temporal-polyfill/full/global";
 import postgres from "@prisma/orm-postgres/runtime";
 import type { Contract } from "../prisma/contract.d";
 import contractJson from "../prisma/contract.json";
-import { SEASONS, type Season, type TaskType } from "../lib/types";
+import { SEASONS, type Season, type TaskAssignmentStatus, type TaskType } from "../lib/types";
 import { isMainModule } from "../lib/is-main";
 
 const dryRun = !process.argv.includes("--live");
@@ -68,6 +68,7 @@ const FOYS_MATCH_OFFICIALS_API = (matchId: number) =>
 
 interface FoysOfficial {
   id: number;
+  status: string | null;
   officialRoleId: number | null;
   officialRoleName: string | null;
   person: {
@@ -112,6 +113,14 @@ export function mapRoleToTaskType(role: string | null | undefined): TaskType | n
   if (r.includes("timer")) return "TABLE_TIMER";
   if (r.includes("shot") || r.includes("schotklok")) return "TABLE_24S_SHOT_CLOCK";
   return null;
+}
+
+// Map a FOYS official status to a TaskAssignmentStatus. Unknown statuses
+// default to DRAFT.
+export function mapStatusToTaskAssignmentStatus(
+  status: string | null | undefined,
+): TaskAssignmentStatus {
+  return status?.toLowerCase() === "planned" ? "PLANNED" : "DRAFT";
 }
 
 // ── Artifacts (local dev inspection) ──────────────────────────────────────────
@@ -188,16 +197,17 @@ export async function createTask(
 }
 
 // Record an assignment for a task: by local user when linked, otherwise by the
-// external official's NBB number.
+// external official's NBB number. The status mirrors the FOYS official status.
 export async function createAssignment(
   db: Db,
-  p: { taskId: string; userId: string | null; nbbNumber: string | null },
+  p: { taskId: string; userId: string | null; nbbNumber: string | null; status: TaskAssignmentStatus },
 ): Promise<void> {
   await db.orm.public.TaskAssignment.create({
     taskId: p.taskId,
     userId: p.userId,
     nbbNumber: p.nbbNumber,
     isDouble: false,
+    status: p.status,
   });
 }
 
@@ -283,6 +293,7 @@ async function main(): Promise<void> {
           taskId,
           userId,
           nbbNumber: official.person?.federationMembershipIdentifier ?? null,
+          status: mapStatusToTaskAssignmentStatus(official.status),
         });
         assignmentsCreated++;
         if (external) externalAssignments++;
