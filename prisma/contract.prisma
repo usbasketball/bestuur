@@ -211,6 +211,7 @@ model Task {
   id        String   @id @default(uuid())
   matchId   String   @map("match_id")
   taskType  TaskType
+  foysTaskId Int?    @unique @map("foys_task_id")
   createdAt Timestamp @default(now()) @map("created_at")
   updatedAt temporal.updatedAt() @map("updated_at")
 

@@ -21,6 +21,7 @@
     "sync:tasks": "tsx scripts/sync-tasks.ts",
     "sync:committee": "tsx scripts/sync-committee.ts",
     "backfill:team-members": "tsx scripts/backfill-team-members.ts",
+    "backfill:task-assignment": "tsx scripts/backfill-task-assignment.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },
