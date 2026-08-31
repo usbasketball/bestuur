@@ -3,6 +3,7 @@ import { setRequestLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { Users, Trophy, Shield, GraduationCap, ClipboardList, LogOut } from "lucide-react";
 import Image from "next/image";
+import { GraphqlProvider } from "@/components/graphql-provider";
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -27,7 +28,11 @@ export default async function DashboardLayout({ params, children }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
 
-  return <DashboardShell>{children}</DashboardShell>;
+  return (
+    <GraphqlProvider>
+      <DashboardShell>{children}</DashboardShell>
+    </GraphqlProvider>
+  );
 }
 
 async function DashboardShell({ children }: { children: React.ReactNode }) {

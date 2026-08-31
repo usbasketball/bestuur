@@ -2,13 +2,19 @@
 
 import { useTranslations } from "next-intl";
 import { ExternalLink } from "lucide-react";
+import { useQuery } from "urql";
 import { foysTeamUrl, formatDiscipline } from "@/lib/types";
-import { useApiData } from "@/lib/use-api";
+import { TEAMS_QUERY } from "@/lib/graphql/queries";
 import type { TeamsResponse } from "@/lib/types";
 
 export default function TeamsPage() {
   const t = useTranslations("Dashboard.teams");
-  const { data: teams, error, loading } = useApiData<TeamsResponse>("/api/teams");
+  const [{ data, error, fetching }] = useQuery<{ teams: TeamsResponse }>({
+    query: TEAMS_QUERY,
+    requestPolicy: "network-only",
+  });
+  const teams = data?.teams;
+  const loading = fetching;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">

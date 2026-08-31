@@ -4,9 +4,10 @@ import { Suspense, useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ExternalLink } from "lucide-react";
+import { useQuery } from "urql";
 import { foysMatchUrl, formatFieldType, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-import { useApiData } from "@/lib/use-api";
+import { MATCHES_QUERY } from "@/lib/graphql/queries";
 import type { MatchesResponse } from "@/lib/types";
 
 export default function MatchesPage() {
@@ -31,16 +32,12 @@ function MatchesContent() {
     }
   }, [rawSeason, router]);
 
-  const { data, error, loading } = useApiData<MatchesResponse>(
-    `/api/matches?season=${season}`,
-  );
-
-  const homeTeamByFoysId = new Map(
-    (data?.homeTeams ?? []).map(
-      (team) => [team.foysCompetitionTeamId, team.name ?? team.teamType] as const,
-    ),
-  );
-
+  const [{ data, error, fetching }] = useQuery<{ matches: MatchesResponse }>({
+    query: MATCHES_QUERY,
+    variables: { season },
+    requestPolicy: "network-only",
+  });
+  const loading = fetching;
   const matches = data?.matches ?? [];
 
   return (
@@ -85,12 +82,12 @@ function MatchesContent() {
               </tr>
             )}
             {matches.map((match) => {
-              const homeLabel =
-                homeTeamByFoysId.get(match.homeTeamFoysId) ??
-                String(match.homeTeamFoysId);
-              const awayLabel = match.awayOrganisationName
-                ? `${match.awayOrganisationName} - ${match.awayTeamName}`
-                : match.awayTeamName ?? String(match.awayTeamFoysId);
+              const homeLabel = match.homeTeam ?? "—";
+              const awayLabel = match.awayTeam
+                ? match.awayTeam.organisation
+                  ? `${match.awayTeam.organisation.name} - ${match.awayTeam.name}`
+                  : match.awayTeam.name ?? String(match.awayTeam.foysId)
+                : "—";
               const score =
                 match.homeScore != null
                   ? `${match.homeScore} – ${match.awayScore}`

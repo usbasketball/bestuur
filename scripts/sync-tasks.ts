@@ -94,12 +94,12 @@ export async function fetchOfficials(matchId: number): Promise<FoysOfficial[]> {
 export function mapRoleToTaskType(role: string | null | undefined): TaskType | null {
   if (!role) return null;
   const r = role.toLowerCase();
-  if (r.includes("hall")) return "HALL_DUTY";
-  if (r.includes("referee")) return "REFEREE";
+  if (r.includes("hall") || r.includes("zaal")) return "HALL_DUTY";
+  if (r.includes("referee") || r.includes("scheidsrechter")) return "REFEREE";
   if (r.includes("scorekeeper")) return "TABLE_SCORER";
   if (r.includes("scorer")) return "TABLE_SCORER";
   if (r.includes("timer")) return "TABLE_TIMER";
-  if (r.includes("shot")) return "TABLE_24S_SHOT_CLOCK";
+  if (r.includes("shot") || r.includes("schotklok")) return "TABLE_24S_SHOT_CLOCK";
   return null;
 }
 
