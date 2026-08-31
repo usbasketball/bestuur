@@ -281,10 +281,10 @@ function EditableAssignmentCell({
   return (
     <span className="group inline-flex items-center gap-1">
       {displayText}
-      {isDraft && assignmentId && taskId && currentUserId && (
+      {isDraft && assignmentId && taskId && (
         <button
           onClick={() => {
-            setSelectedMemberId(currentUserId);
+            setSelectedMemberId(currentUserId ?? "");
             setEditing(true);
           }}
           className="inline-flex text-ink-muted opacity-0 transition-opacity hover:text-accent group-hover:opacity-100"
