@@ -1,6 +1,7 @@
 import { GraphQLScalarType, Kind } from "graphql";
 import { db } from "@/lib/db";
 import { SEASONS, type Season, type TeamType, type CommitteeType } from "@/lib/types";
+import { assertBestuur, requireSession } from "@/lib/api-auth";
 
 type ResolverMap = Record<string, unknown>;
 
@@ -294,12 +295,14 @@ export const resolvers: ResolverMap = {
   },
   Query: {
     matches: async (_parent: unknown, args: { season?: string }) => {
+      await assertBestuur();
       const season = normalizeSeason(args.season);
       const { matches } = await loadMatchData(season);
       return matches;
     },
 
     members: async (_parent: unknown, args: { season?: string }) => {
+      await assertBestuur();
       const season = normalizeSeason(args.season);
 
       const memberships = await db.orm.public.ClubMembership.select("userId")
@@ -312,6 +315,7 @@ export const resolvers: ResolverMap = {
     },
 
     teams: async (_parent: unknown, args: { season?: string }) => {
+      await assertBestuur();
       const season = normalizeSeason(args.season);
 
       const teams = await db.orm.public.Team.select(
@@ -339,6 +343,7 @@ export const resolvers: ResolverMap = {
     },
 
     activeMembers: async (_parent: unknown, args: { season?: string }) => {
+      await assertBestuur();
       const season = normalizeSeason(args.season);
 
       const [coaches, committees, hallDuties] = await Promise.all([
@@ -366,6 +371,28 @@ export const resolvers: ResolverMap = {
 
       return users.map((user) => memberRecord(user, season, ctx));
     },
+
+    me: async () => {
+      const session = await requireSession();
+      const sub = session.user.sub;
+      if (!sub) return null;
+
+      const user = await db.orm.public.User.select(
+        "id",
+        "email",
+        "firstName",
+        "lastNamePrefix",
+        "lastName",
+        "nbbNumber",
+        "refereeLevel",
+        "foysUserId",
+        "memberSince",
+      )
+        .where((u) => u.auth0Sub.eq(sub))
+        .first();
+
+      return user ? buildUser(user) : null;
+    },
   },
 
   Mutation: {
@@ -373,6 +400,7 @@ export const resolvers: ResolverMap = {
       _parent: unknown,
       args: { assignmentId?: string | null; taskId: string; memberId?: string | null; season: string },
     ) => {
+      await assertBestuur();
       const { assignmentId, taskId, memberId } = args;
       const season = normalizeSeason(args.season);
 

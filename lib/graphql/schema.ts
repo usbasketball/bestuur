@@ -4,6 +4,7 @@ export const typeDefs = /* GraphQL */ `
     members(season: String): [Member!]!
     teams(season: String): [Team!]!
     activeMembers(season: String): [Member!]!
+    me: User
   }
 
   type Mutation {
