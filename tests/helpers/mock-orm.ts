@@ -25,16 +25,23 @@ interface Chain {
   update: ReturnType<typeof vi.fn>;
 }
 
-function selectChain(rows: Rows): { where: ReturnType<typeof vi.fn>; all: ReturnType<typeof vi.fn> } {
+function selectChain(rows: Rows): {
+  where: ReturnType<typeof vi.fn>;
+  all: ReturnType<typeof vi.fn>;
+  first: ReturnType<typeof vi.fn>;
+} {
   return {
-    where: vi.fn((filter: unknown) => ({
-      all: vi.fn(async () =>
-        rows.filter(
-          (row) => matchesFilter(row as Record<string, unknown>, filter),
-        ),
-      ),
-    })),
+    where: vi.fn((filter: unknown) => {
+      const filtered = rows.filter((row) =>
+        matchesFilter(row as Record<string, unknown>, filter),
+      );
+      return {
+        all: vi.fn(async () => filtered),
+        first: vi.fn(async () => filtered[0] ?? null),
+      };
+    }),
     all: vi.fn(async () => rows),
+    first: vi.fn(async () => rows[0] ?? null),
   };
 }
 
