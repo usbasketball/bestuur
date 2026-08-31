@@ -1,7 +1,7 @@
 import { GraphQLScalarType, Kind } from "graphql";
 import { db } from "@/lib/db";
 import { SEASONS, type Season, type TeamType, type CommitteeType } from "@/lib/types";
-import { assertBestuur, requireSession } from "@/lib/api-auth";
+import { assertBestuur, requireSession, type GraphQLContext } from "@/lib/api-auth";
 
 type ResolverMap = Record<string, unknown>;
 
@@ -294,15 +294,15 @@ export const resolvers: ResolverMap = {
     member: (parent: { assignmentId: string; member: unknown }) => parent.member,
   },
   Query: {
-    matches: async (_parent: unknown, args: { season?: string }) => {
-      await assertBestuur();
+    matches: async (_parent: unknown, args: { season?: string }, context?: GraphQLContext) => {
+      await assertBestuur(context);
       const season = normalizeSeason(args.season);
       const { matches } = await loadMatchData(season);
       return matches;
     },
 
-    members: async (_parent: unknown, args: { season?: string }) => {
-      await assertBestuur();
+    members: async (_parent: unknown, args: { season?: string }, context?: GraphQLContext) => {
+      await assertBestuur(context);
       const season = normalizeSeason(args.season);
 
       const memberships = await db.orm.public.ClubMembership.select("userId")
@@ -314,8 +314,8 @@ export const resolvers: ResolverMap = {
       return users.map((user) => memberRecord(user, season, ctx));
     },
 
-    teams: async (_parent: unknown, args: { season?: string }) => {
-      await assertBestuur();
+    teams: async (_parent: unknown, args: { season?: string }, context?: GraphQLContext) => {
+      await assertBestuur(context);
       const season = normalizeSeason(args.season);
 
       const teams = await db.orm.public.Team.select(
@@ -342,8 +342,8 @@ export const resolvers: ResolverMap = {
       }));
     },
 
-    activeMembers: async (_parent: unknown, args: { season?: string }) => {
-      await assertBestuur();
+    activeMembers: async (_parent: unknown, args: { season?: string }, context?: GraphQLContext) => {
+      await assertBestuur(context);
       const season = normalizeSeason(args.season);
 
       const [coaches, committees, hallDuties] = await Promise.all([
@@ -372,8 +372,8 @@ export const resolvers: ResolverMap = {
       return users.map((user) => memberRecord(user, season, ctx));
     },
 
-    me: async () => {
-      const session = await requireSession();
+    me: async (_parent: unknown, _args: unknown, context?: GraphQLContext) => {
+      const session = await requireSession(context);
       const sub = session.user.sub;
       if (!sub) return null;
 
@@ -399,8 +399,9 @@ export const resolvers: ResolverMap = {
     upsertTaskAssignment: async (
       _parent: unknown,
       args: { assignmentId?: string | null; taskId: string; memberId?: string | null; season: string },
+      context?: GraphQLContext,
     ) => {
-      await assertBestuur();
+      await assertBestuur(context);
       const { assignmentId, taskId, memberId } = args;
       const season = normalizeSeason(args.season);
 
