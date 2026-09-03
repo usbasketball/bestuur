@@ -5,9 +5,10 @@ import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "urql";
 import { SEASONS } from "@/lib/types";
-import type { ActiveMembersResponse, Season } from "@/lib/types";
+import type { Season } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
 import { graphql } from "@/lib/graphql/generated";
+import type { ActiveMembersQuery } from "@/lib/graphql/generated/graphql";
 
 const ACTIVE_MEMBERS_QUERY = graphql(`
   query ActiveMembers($season: String) {
@@ -50,9 +51,7 @@ function ActiveMembersContent() {
     ? (rawSeason as Season)
     : CURRENT_SEASON;
 
-  const [{ data: result, error, fetching }] = useQuery<{
-    activeMembers: ActiveMembersResponse;
-  }>({
+  const [{ data: result, error, fetching }] = useQuery<ActiveMembersQuery>({
     query: ACTIVE_MEMBERS_QUERY,
     variables: { season },
     requestPolicy: "network-only",

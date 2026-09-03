@@ -9,7 +9,7 @@ import { foysMatchUrl } from "@/lib/foys";
 import { formatFieldType, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
 import { graphql } from "@/lib/graphql/generated";
-import type { MatchesResponse } from "@/lib/types";
+import type { MatchesQuery } from "@/lib/graphql/generated/graphql";
 
 const MATCHES_QUERY = graphql(`
   query Matches($season: String) {
@@ -143,13 +143,15 @@ function MatchesContent() {
     }
   }, [rawSeason, router]);
 
-  const [{ data, error, fetching }] = useQuery<{ matches: MatchesResponse }>({
+  const [{ data, error, fetching }] = useQuery<MatchesQuery>({
     query: MATCHES_QUERY,
     variables: { season },
     requestPolicy: "network-only",
   });
   const loading = fetching;
-  const matches = data?.matches ?? [];
+  const matches = data?.matches?.filter(
+    (match): match is NonNullable<typeof match> => match !== null,
+  ) ?? [];
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">

@@ -6,7 +6,7 @@ import { useQuery } from "urql";
 import { foysTeamUrl } from "@/lib/foys";
 import { formatDiscipline } from "@/lib/types";
 import { graphql } from "@/lib/graphql/generated";
-import type { TeamsResponse } from "@/lib/types";
+import type { TeamsQuery } from "@/lib/graphql/generated/graphql";
 
 const TEAMS_QUERY = graphql(`
   query Teams($season: String) {
@@ -24,7 +24,7 @@ const TEAMS_QUERY = graphql(`
 
 export default function TeamsPage() {
   const t = useTranslations("Dashboard.teams");
-  const [{ data, error, fetching }] = useQuery<{ teams: TeamsResponse }>({
+  const [{ data, error, fetching }] = useQuery<TeamsQuery>({
     query: TEAMS_QUERY,
     requestPolicy: "network-only",
   });

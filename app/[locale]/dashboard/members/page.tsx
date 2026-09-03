@@ -6,9 +6,10 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { useQuery } from "urql";
 import { foysMemberUrl } from "@/lib/foys";
-import { TEAM_TYPES, type MembersResponse, type TeamType } from "@/lib/types";
+import { TEAM_TYPES, type TeamType } from "@/lib/types";
 import TeamTypeSelect from "@/components/team-type-select";
 import { graphql } from "@/lib/graphql/generated";
+import type { MembersQuery } from "@/lib/graphql/generated/graphql";
 
 const MEMBERS_QUERY = graphql(`
   query Members($season: String) {
@@ -44,7 +45,7 @@ function MembersContent() {
   const t = useTranslations("Dashboard.members");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [{ data, error, fetching }] = useQuery<{ members: MembersResponse }>({
+  const [{ data, error, fetching }] = useQuery<MembersQuery>({
     query: MEMBERS_QUERY,
     requestPolicy: "network-only",
   });

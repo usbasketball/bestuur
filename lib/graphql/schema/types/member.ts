@@ -1,6 +1,6 @@
 import { builder } from "../builder";
 import type { TeamType, CommitteeType, Season } from "@/lib/types";
-import type { UserRecord } from "./user";
+import type { UserGql } from "./user";
 import { UserRef } from "./user";
 import { TeamTypeEnum, CommitteeTypeEnum } from "./enums";
 
@@ -9,16 +9,16 @@ import { TeamTypeEnum, CommitteeTypeEnum } from "./enums";
  * `club_memberships`, `coaches` and `committees`. There is no `members` table;
  * members are users with a club membership for a given season.
  */
-export type MemberRecord = {
+export type MemberGql = {
   id: string;
-  user: UserRecord;
+  user: UserGql;
   season: Season;
   primaryTeam: TeamType | null;
   coachingTeams: TeamType[];
   committees: CommitteeType[];
 };
 
-export const MemberRef = builder.objectRef<MemberRecord>("Member");
+export const MemberRef = builder.objectRef<MemberGql>("Member");
 
 MemberRef.implement({
   description: "A club member for a given season",

@@ -3,11 +3,12 @@ import { RefereeLevelEnum } from "./enums";
 import type { RefereeLevel } from "@/lib/types";
 
 /**
- * User DTO — the shape each User resolver receives as its parent.
+ * GraphQL parent shape for User. This is intentionally separate from the
+ * persistence and domain models.
  * Produced by `loadUsers()` / `buildUser()`. Maps 1:1 to the `users` table,
  * except `memberSince` is already converted from Temporal to an ISO date string.
  */
-export type UserRecord = {
+export type UserGql = {
   id: string;
   email: string;
   firstName: string | null;
@@ -19,7 +20,7 @@ export type UserRecord = {
   memberSince: string | null;
 };
 
-export const UserRef = builder.objectRef<UserRecord>("User");
+export const UserRef = builder.objectRef<UserGql>("User");
 
 UserRef.implement({
   description: "A registered user of the club",

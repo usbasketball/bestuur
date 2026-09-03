@@ -9,7 +9,7 @@ import { foysMatchUrl } from "@/lib/foys";
 import { formatFieldType, abbreviateTeamType, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
 import { graphql } from "@/lib/graphql/generated";
-import type { MatchesResponse, MembersResponse, Member, TaskAssignee } from "@/lib/types";
+import type { MatchesQuery, MembersQuery } from "@/lib/graphql/generated/graphql";
 
 const MATCHES_QUERY = graphql(`
   query Matches($season: String) {
@@ -160,6 +160,10 @@ const UPSERT_TASK_ASSIGNMENT_MUTATION = graphql(`
   }
 `);
 
+type Member = MembersQuery["members"][number];
+type Match = NonNullable<MatchesQuery["matches"][number]>;
+type TaskAssignee = NonNullable<Match["tasks"]>["hallDuty"];
+
 export default function TasksPage() {
   return (
     <Suspense>
@@ -182,19 +186,21 @@ function TasksContent() {
     }
   }, [rawSeason, router]);
 
-  const [matchesResult] = useQuery<{ matches: MatchesResponse }>({
+  const [matchesResult] = useQuery<MatchesQuery>({
     query: MATCHES_QUERY,
     variables: { season },
     requestPolicy: "network-only",
   });
-  const [membersResult] = useQuery<{ members: MembersResponse }>({
+  const [membersResult] = useQuery<MembersQuery>({
     query: MEMBERS_QUERY,
     variables: { season },
     requestPolicy: "network-only",
   });
 
   const loading = matchesResult.fetching;
-  const matches = matchesResult.data?.matches ?? [];
+  const matches = matchesResult.data?.matches?.filter(
+    (match): match is NonNullable<typeof match> => match !== null,
+  ) ?? [];
   const members = useMemo(() => membersResult.data?.members ?? [], [membersResult.data]);
 
   const rows = matches

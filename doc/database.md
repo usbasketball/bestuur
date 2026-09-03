@@ -121,6 +121,14 @@ Mapped from FOYS club plan names using `mapPlanMembershipType()` in
 | `bestuur` | Full access; owns schema (creates via `db:update`) | bestuur app |
 | `usbasketball` | Read-only on shared tables + INSERT on `interest_submissions` | usbasketballnl app |
 
+## Record boundary
+
+The Prisma contract and ORM output describe database records only. Code that
+reads or writes the database may use contract-generated `FieldOutputTypes` and
+Temporal values, but those types must be mapped before entering domain or
+GraphQL code. Domain models live in `lib/models` and must not import Prisma,
+ORM, Pothos, or generated GraphQL client types.
+
 ## Contract Workflow
 
 Prisma 8 uses a contract-based workflow instead of traditional `prisma migrate`:

@@ -6,8 +6,8 @@ import {
   type CommitteeType,
   type RefereeLevel,
 } from "@/lib/types";
-import type { UserRecord } from "./types/user";
-import type { MemberRecord } from "./types/member";
+import type { UserGql } from "./types/user";
+import type { MemberGql } from "./types/member";
 
 /** Reject a season value that isn't a known season key; default to the latest. */
 export function normalizeSeason(raw: unknown): Season {
@@ -21,7 +21,7 @@ function toPlainDateString(value: unknown): string | null {
   return null;
 }
 
-/** Map a full DB user row (with Temporal memberSince) to a UserRecord DTO. */
+/** Map a selected DB user row to the GraphQL parent shape. */
 export function buildUser(user: {
   id: string;
   email: string;
@@ -32,7 +32,7 @@ export function buildUser(user: {
   refereeLevel: string | null;
   foysUserId: string | null;
   memberSince: unknown;
-}): UserRecord {
+}): UserGql {
   return {
     id: user.id,
     email: user.email,
@@ -83,7 +83,7 @@ export async function loadMemberContext(season: Season): Promise<MemberContext> 
 }
 
 /** Batch-load users, optionally filtered by id. */
-export async function loadUsers(userIds?: string[]): Promise<UserRecord[]> {
+export async function loadUsers(userIds?: string[]): Promise<UserGql[]> {
   const base = db.orm.public.User.select(
     "id",
     "email",
@@ -107,12 +107,12 @@ export async function loadUsers(userIds?: string[]): Promise<UserRecord[]> {
   return users.map(buildUser);
 }
 
-/** Compose a Member DTO from a UserRecord + season + member context. */
+/** Compose a GraphQL member parent from a user and season context. */
 export function memberRecord(
-  user: UserRecord,
+  user: UserGql,
   season: Season,
   ctx: MemberContext,
-): MemberRecord {
+): MemberGql {
   return {
     id: user.id,
     user,
@@ -124,7 +124,7 @@ export function memberRecord(
 }
 
 /** Load a single user by Auth0 subject (used by the `me` query). */
-export async function loadUserByAuth0Sub(auth0Sub: string): Promise<UserRecord | null> {
+export async function loadUserByAuth0Sub(auth0Sub: string): Promise<UserGql | null> {
   const user = await db.orm.public.User.select(
     "id",
     "email",

@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import type { Season, TeamType } from "@/lib/types";
-import type { MatchRecord } from "./types/match";
-import type { TaskAssigneeRecord } from "./types/task";
+import type { MatchGql } from "./types/match";
+import type { TaskAssigneeGql } from "./types/task";
 import { loadMemberContext, memberRecord, buildUser } from "./loaders";
 
 type MatchDbRow = {
@@ -20,11 +20,11 @@ type MatchDbRow = {
   field: string | null;
 };
 
-function buildMatch(match: MatchDbRow, homeTeamTypeByFoysId: Map<number, TeamType>): MatchRecord {
+function buildMatch(match: MatchDbRow, homeTeamTypeByFoysId: Map<number, TeamType>): MatchGql {
   return {
     id: match.id,
     foysMatchId: match.foysMatchId,
-    status: match.status as MatchRecord["status"],
+    status: match.status as MatchGql["status"],
     date: match.date.toPlainDate().toString(),
     startTime: match.startTime,
     homeScore: match.homeScore,
@@ -40,7 +40,7 @@ function buildMatch(match: MatchDbRow, homeTeamTypeByFoysId: Map<number, TeamTyp
           }
         : null,
     },
-    field: match.field as MatchRecord["field"],
+    field: match.field as MatchGql["field"],
     tasks: {
       hallDuty: null,
       referee1: null,
@@ -54,10 +54,10 @@ function buildMatch(match: MatchDbRow, homeTeamTypeByFoysId: Map<number, TeamTyp
 
 /**
  * Batch-load all home matches for a season with their task assignments.
- * Returns MatchRecord DTOs with tasks populated. This is the single loader
+ * Returns GraphQL match parents with tasks populated. This is the single loader
  * backing the `matches` query (and the tasks view).
  */
-export async function loadMatchData(season: Season): Promise<MatchRecord[]> {
+export async function loadMatchData(season: Season): Promise<MatchGql[]> {
   const homeTeams = await db.orm.public.Team.select(
     "foysCompetitionTeamId",
     "name",
@@ -91,7 +91,7 @@ export async function loadMatchData(season: Season): Promise<MatchRecord[]> {
     .orderBy([(m) => m.date.asc(), (m) => m.startTime.asc(), (m) => m.field.asc()])
     .all();
 
-  const matchByMatchId = new Map<string, MatchRecord>();
+  const matchByMatchId = new Map<string, MatchGql>();
   for (const m of matches) {
     matchByMatchId.set(m.id, buildMatch(m, homeTeamTypeByFoysId));
   }
@@ -124,7 +124,7 @@ export async function loadMatchData(season: Season): Promise<MatchRecord[]> {
 
   const taskRows = assignments
     .filter((a) => matchByMatchId.has(a.task.matchId))
-    .map((a): { taskMatchId: string; taskType: string; assignment: TaskAssigneeRecord } => ({
+    .map((a): { taskMatchId: string; taskType: string; assignment: TaskAssigneeGql } => ({
       taskMatchId: a.task.matchId,
       taskType: a.task.taskType,
       assignment: {

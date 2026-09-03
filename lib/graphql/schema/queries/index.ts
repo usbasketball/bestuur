@@ -10,7 +10,7 @@ import {
 } from "../loaders";
 import { loadMatchData } from "../load-match-data";
 import { MemberRef } from "../types/member";
-import { TeamRef, type TeamRecord } from "../types/team";
+import { TeamRef, type TeamGql } from "../types/team";
 import { UserRef } from "../types/user";
 import { MatchRef } from "../types/match";
 
@@ -99,7 +99,7 @@ builder.queryFields((t) => ({
         .orderBy([(t) => t.teamType.asc()])
         .all();
 
-      return teams.map((team): TeamRecord => ({
+      return teams.map((team): TeamGql => ({
         id: team.id,
         foysCompetitionTeamId: team.foysCompetitionTeamId,
         foysTeamId: team.foysTeamId,
