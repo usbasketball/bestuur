@@ -7,7 +7,29 @@ import { ExternalLink } from "lucide-react";
 import { useQuery } from "urql";
 import { TEAM_TYPES, foysMemberUrl, type MembersResponse, type TeamType } from "@/lib/types";
 import TeamTypeSelect from "@/components/team-type-select";
-import { MEMBERS_QUERY } from "@/lib/graphql/operations";
+import { graphql } from "@/lib/graphql/generated";
+
+const MEMBERS_QUERY = graphql(`
+  query Members($season: String) {
+    members(season: $season) {
+      id
+      season
+      primaryTeam
+      coachingTeams
+      committees
+      user {
+        email
+        firstName
+        lastNamePrefix
+        lastName
+        nbbNumber
+        refereeLevel
+        foysUserId
+        memberSince
+      }
+    }
+  }
+`);
 
 export default function MembersPage() {
   return (

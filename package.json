@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "prisma contract emit",
+    "prebuild": "prisma contract emit && npm run schema:generate && npm run codegen",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

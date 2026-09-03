@@ -7,7 +7,29 @@ import { useQuery } from "urql";
 import { SEASONS } from "@/lib/types";
 import type { ActiveMembersResponse, Season } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-import { ACTIVE_MEMBERS_QUERY } from "@/lib/graphql/operations";
+import { graphql } from "@/lib/graphql/generated";
+
+const ACTIVE_MEMBERS_QUERY = graphql(`
+  query ActiveMembers($season: String) {
+    activeMembers(season: $season) {
+      id
+      season
+      primaryTeam
+      coachingTeams
+      committees
+      user {
+        email
+        firstName
+        lastNamePrefix
+        lastName
+        nbbNumber
+        refereeLevel
+        foysUserId
+        memberSince
+      }
+    }
+  }
+`);
 
 const CURRENT_SEASON = SEASONS[0];
 

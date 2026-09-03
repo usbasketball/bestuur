@@ -7,8 +7,118 @@ import { ExternalLink } from "lucide-react";
 import { useQuery } from "urql";
 import { foysMatchUrl, formatFieldType, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-import { MATCHES_QUERY } from "@/lib/graphql/operations";
+import { graphql } from "@/lib/graphql/generated";
 import type { MatchesResponse } from "@/lib/types";
+
+const MATCHES_QUERY = graphql(`
+  query Matches($season: String) {
+    matches(season: $season) {
+      id
+      foysMatchId
+      status
+      date
+      startTime
+      homeScore
+      awayScore
+      homeTeam
+      awayTeam {
+        foysId
+        name
+        organisation {
+          name
+          foysId
+        }
+      }
+      field
+      tasks {
+        hallDuty {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+        referee1 {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+        referee2 {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+        scorer {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+        timer {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+        shotClock {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+      }
+    }
+  }
+`);
 
 export default function MatchesPage() {
   return (
