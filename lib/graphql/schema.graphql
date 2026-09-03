@@ -1,0 +1,171 @@
+enum ClubMembershipType {
+  COMPETITION
+  RECREATIONAL
+}
+
+enum CommitteeType {
+  BOARD_CHAIRPERSON
+  BOARD_GAME_SECRETARY
+  BOARD_GENERAL_MEMBER
+  BOARD_SECRETARY
+  BOARD_TREASURER
+  OMNI
+}
+
+"""An ISO-8601 formatted date or datetime string"""
+scalar DateTime
+
+enum Discipline {
+  DISCIPLINE_3x3
+  DISCIPLINE_5x5
+}
+
+enum FieldType {
+  CENTER_COURT
+  VELD_1
+  VELD_2
+  VELD_3
+}
+
+"""
+A basketball match with embedded home/away team info and task assignments
+"""
+type Match {
+  awayScore: Int
+  awayTeam: NbbTeam!
+  date: String!
+  field: FieldType
+  foysMatchId: Int!
+  homeScore: Int
+  homeTeam: TeamType
+  id: ID!
+  startTime: String
+  status: MatchStatus!
+  tasks: MatchTasks!
+}
+
+enum MatchStatus {
+  CANCELLED
+  FINAL
+  PLANNED
+  WITHDRAWN
+}
+
+"""The task assignments for a match, grouped by task type slot"""
+type MatchTasks {
+  hallDuty: TaskAssignee
+  referee1: TaskAssignee
+  referee2: TaskAssignee
+  scorer: TaskAssignee
+  shotClock: TaskAssignee
+  timer: TaskAssignee
+}
+
+"""A club member for a given season"""
+type Member {
+  coachingTeams: [TeamType!]!
+  committees: [CommitteeType!]!
+  id: ID!
+  primaryTeam: TeamType
+  season: String!
+  user: User!
+}
+
+type Mutation {
+  upsertTaskAssignment(assignmentId: String, memberId: String, season: String!, taskId: String!): TaskAssignee
+}
+
+"""An away opponent's organisation"""
+type NbbOrganisation {
+  foysId: UUID!
+  name: String!
+}
+
+"""
+A team participating in a match (home teams are our own; away teams come from FOYS)
+"""
+type NbbTeam {
+  foysId: Int!
+  name: String
+  organisation: NbbOrganisation
+}
+
+type Query {
+  activeMembers(season: String): [Member!]!
+  matches(season: String): [Match]!
+  me: User
+  members(season: String): [Member!]!
+  teams(season: String): [Team!]!
+}
+
+enum RefereeLevel {
+  BS2
+  BS3
+  BS4
+  E
+  F
+}
+
+"""A task assignment on a match, with the assigned member (if any)"""
+type TaskAssignee {
+  assignmentId: ID!
+  member: Member
+  status: TaskAssignmentStatus!
+  taskId: ID!
+}
+
+enum TaskAssignmentStatus {
+  DRAFT
+  PLANNED
+}
+
+enum TaskType {
+  HALL_DUTY
+  REFEREE
+  TABLE_24S_SHOT_CLOCK
+  TABLE_SCORER
+  TABLE_TIMER
+}
+
+"""A team, mapped 1:1 from the teams table"""
+type Team {
+  discipline: Discipline!
+  foysCompetitionTeamId: Int!
+  foysTeamId: Int
+  id: ID!
+  name: String
+  season: String!
+  teamType: TeamType!
+}
+
+enum TeamType {
+  MSE1
+  MSE2
+  MSE3
+  MSE4
+  MSE5
+  MSE6
+  V3x3
+  VSE1
+  VSE2
+  VSE3
+  VSE4
+  VSE5
+  VSE6
+}
+
+"""A universally unique identifier (UUID) string"""
+scalar UUID
+
+"""A registered user of the club"""
+type User {
+  email: String!
+  firstName: String
+  foysUserId: String
+  id: ID!
+  lastName: String
+  lastNamePrefix: String
+  memberSince: String
+  nbbNumber: String
+  refereeLevel: RefereeLevel
+}

@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { ExternalLink } from "lucide-react";
 import { useQuery } from "urql";
 import { foysTeamUrl, formatDiscipline } from "@/lib/types";
-import { TEAMS_QUERY } from "@/lib/graphql/queries";
+import { TEAMS_QUERY } from "@/lib/graphql/operations";
 import type { TeamsResponse } from "@/lib/types";
 
 export default function TeamsPage() {

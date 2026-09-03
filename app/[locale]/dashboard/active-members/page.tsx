@@ -7,7 +7,7 @@ import { useQuery } from "urql";
 import { SEASONS } from "@/lib/types";
 import type { ActiveMembersResponse, Season } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-import { ACTIVE_MEMBERS_QUERY } from "@/lib/graphql/queries";
+import { ACTIVE_MEMBERS_QUERY } from "@/lib/graphql/operations";
 
 const CURRENT_SEASON = SEASONS[0];
 

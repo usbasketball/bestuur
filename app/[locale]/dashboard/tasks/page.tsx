@@ -7,7 +7,7 @@ import { ExternalLink, Pencil, Check, X } from "lucide-react";
 import { useQuery, useMutation } from "urql";
 import { foysMatchUrl, formatFieldType, abbreviateTeamType, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-import { MATCHES_QUERY, MEMBERS_QUERY, UPSERT_TASK_ASSIGNMENT_MUTATION } from "@/lib/graphql/queries";
+import { MATCHES_QUERY, MEMBERS_QUERY, UPSERT_TASK_ASSIGNMENT_MUTATION } from "@/lib/graphql/operations";
 import type { MatchesResponse, MembersResponse, Member, TaskAssignee } from "@/lib/types";
 
 export default function TasksPage() {

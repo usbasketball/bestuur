@@ -10,12 +10,19 @@ export { TASK_ASSIGNMENT_STATUSES, type TaskAssignmentStatus } from "./task-assi
 export { FOYS_CLUB_ID, FOYS_BASE_URL, foysMemberUrl, foysTeamUrl, foysMatchUrl } from "./foys";
 export { SEASONS, seasonFromDate, type Season } from "./seasons";
 export { toPlainDateTime, toPlainDateTimeFromIso } from "./datetime";
-export type {
-  ActiveMembersResponse,
-  MatchesResponse,
-  Member,
-  MembersResponse,
-  MatchTasks,
-  TaskAssignee,
-  TeamsResponse,
-} from "./api";
+
+// Re-export GQL response types for backward compatibility with component imports.
+// These match the Pothos schema types; will be replaced by codegen-generated types.
+export type { UserRecord as User } from "@/lib/graphql/schema/types/user";
+export type { MemberRecord as Member } from "@/lib/graphql/schema/types/member";
+export type { MatchRecord as Match } from "@/lib/graphql/schema/types/match";
+export type { TaskAssigneeRecord as TaskAssignee } from "@/lib/graphql/schema/types/task";
+export type { MatchTasksRecord as MatchTasks } from "@/lib/graphql/schema/types/task";
+export type { NbbTeamRecord as NbbTeam } from "@/lib/graphql/schema/types/match";
+export type { NbbOrganisationRecord as NbbOrganisation } from "@/lib/graphql/schema/types/match";
+export type { TeamRecord as Team } from "@/lib/graphql/schema/types/team";
+
+export type MatchesResponse = import("@/lib/graphql/schema/types/match").MatchRecord[];
+export type MembersResponse = import("@/lib/graphql/schema/types/member").MemberRecord[];
+export type ActiveMembersResponse = import("@/lib/graphql/schema/types/member").MemberRecord[];
+export type TeamsResponse = import("@/lib/graphql/schema/types/team").TeamRecord[];

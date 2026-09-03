@@ -5,10 +5,9 @@ import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { useQuery } from "urql";
-import { foysMemberUrl, TEAM_TYPES } from "@/lib/types";
-import type { MembersResponse, TeamType } from "@/lib/types";
+import { TEAM_TYPES, foysMemberUrl, type MembersResponse, type TeamType } from "@/lib/types";
 import TeamTypeSelect from "@/components/team-type-select";
-import { MEMBERS_QUERY } from "@/lib/graphql/queries";
+import { MEMBERS_QUERY } from "@/lib/graphql/operations";
 
 export default function MembersPage() {
   return (

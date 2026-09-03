@@ -7,7 +7,7 @@ import { ExternalLink } from "lucide-react";
 import { useQuery } from "urql";
 import { foysMatchUrl, formatFieldType, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-import { MATCHES_QUERY } from "@/lib/graphql/queries";
+import { MATCHES_QUERY } from "@/lib/graphql/operations";
 import type { MatchesResponse } from "@/lib/types";
 
 export default function MatchesPage() {
