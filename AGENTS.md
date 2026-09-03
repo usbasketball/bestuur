@@ -23,6 +23,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Sync scripts import from `lib/types` — keep them in sync
 - Sync scripts: [doc/syncing.md](doc/syncing.md) (users, teams, home matches)
 
+## GraphQL
+
+- Schema: Pothos code-first in `lib/graphql/schema/`; served at `POST /api/graphql`
+- Full docs, auth, and codegen workflow: [doc/graphql.md](doc/graphql.md)
+- `lib/graphql/generated/*` are generated (not committed) — run `npm run schema:generate && npm run codegen` after schema/operation changes
+
 ## Conventions
 
 - TypeScript strict mode
