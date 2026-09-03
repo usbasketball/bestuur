@@ -1,14 +1,9 @@
 import { createYoga } from "graphql-yoga";
-import { makeExecutableSchema } from "@graphql-tools/schema";
-import { typeDefs } from "@/lib/graphql/schema";
-import { resolvers } from "@/lib/graphql/resolvers";
+import { schema } from "@/lib/graphql/schema";
 import { getAuthContext, requireAuthenticated } from "@/lib/api-auth";
 
 const yoga = createYoga({
-  schema: makeExecutableSchema({
-    typeDefs,
-    resolvers: resolvers as Parameters<typeof makeExecutableSchema>[0]["resolvers"],
-  }),
+  schema,
   context: async ({ request }) => {
     return getAuthContext(request);
   },

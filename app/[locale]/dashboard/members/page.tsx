@@ -5,10 +5,31 @@ import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { useQuery } from "urql";
-import { foysMemberUrl, TEAM_TYPES } from "@/lib/types";
-import type { MembersResponse, TeamType } from "@/lib/types";
+import { TEAM_TYPES, foysMemberUrl, type MembersResponse, type TeamType } from "@/lib/types";
 import TeamTypeSelect from "@/components/team-type-select";
-import { MEMBERS_QUERY } from "@/lib/graphql/queries";
+import { graphql } from "@/lib/graphql/generated";
+
+const MEMBERS_QUERY = graphql(`
+  query Members($season: String) {
+    members(season: $season) {
+      id
+      season
+      primaryTeam
+      coachingTeams
+      committees
+      user {
+        email
+        firstName
+        lastNamePrefix
+        lastName
+        nbbNumber
+        refereeLevel
+        foysUserId
+        memberSince
+      }
+    }
+  }
+`);
 
 export default function MembersPage() {
   return (

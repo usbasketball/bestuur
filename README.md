@@ -55,6 +55,12 @@ PostgreSQL on Neon, shared with the [usbasketballnl](https://github.com/usbasket
 
 See [doc/database.md](doc/database.md) for models, enums, roles, and schema change workflow.
 
+## GraphQL
+
+The app exposes a GraphQL API at `POST /api/graphql`, defined code-first with Pothos and served by graphql-yoga. Client types are generated with graphql-codegen.
+
+See [doc/graphql.md](doc/graphql.md) for the schema architecture, codegen workflow, and auth.
+
 ## Syncing Data from FOYS
 
 See [doc/syncing.md](doc/syncing.md) for all sync scripts (users, teams, home matches).
@@ -80,8 +86,12 @@ bestuur/
 ├── app/                    # Next.js App Router pages
 ├── doc/                    # Documentation
 │   ├── database.md         # Database models, roles, and schema workflow
+│   ├── graphql.md          # GraphQL schema, auth, and codegen workflow
 │   └── syncing.md          # FOYS sync scripts (users, teams, matches)
 ├── lib/                    # Shared utilities and constants
+│   ├── graphql/
+│   │   ├── schema/         # Pothos code-first schema
+│   │   └── schema.graphql  # Generated schema snapshot
 │   └── types/              # REFEREE_LEVELS, TAG_CODE_TO_LEVEL, TEAM_TYPES, mapTeamType
 ├── prisma/
 │   └── contract.prisma     # Database schema (source of truth)

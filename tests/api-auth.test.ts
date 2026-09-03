@@ -9,7 +9,7 @@ import {
   type GraphQLContext,
 } from "../lib/api-auth";
 import { auth0 } from "../lib/auth";
-import { resolvers } from "../lib/graphql/resolvers";
+import { loadUserByAuth0Sub } from "../lib/graphql/schema/loaders";
 import { createMockDb, asDb } from "./helpers/mock-orm";
 import { db } from "../lib/db";
 
@@ -250,10 +250,8 @@ describe("API Auth & Bearer JWT Verification", () => {
     });
   });
 
-  describe("resolvers.Query.me", () => {
+  describe("loadUserByAuth0Sub (me query loader)", () => {
     it("returns user using token context fallback when no session cookie is present", async () => {
-      vi.mocked(auth0.getSession).mockResolvedValueOnce(null);
-
       const mockDb = createMockDb({
         User: [
           {
@@ -275,22 +273,7 @@ describe("API Auth & Bearer JWT Verification", () => {
       Object.assign(db, asDb(mockDb));
 
       try {
-        const queryResolvers = resolvers.Query as Record<
-          string,
-          (
-            _parent: unknown,
-            _args: unknown,
-            context?: GraphQLContext,
-          ) => Promise<unknown>
-        >;
-        const meResolver = queryResolvers.me;
-
-        const result = await meResolver(
-          {},
-          {},
-          { tokenSub: "auth0|token-user-123", sub: "auth0|token-user-123" },
-        );
-
+        const result = await loadUserByAuth0Sub("auth0|token-user-123");
         expect(result).toEqual({
           id: "user-1",
           email: "tokenuser@x.nl",
@@ -307,20 +290,17 @@ describe("API Auth & Bearer JWT Verification", () => {
       }
     });
 
-    it("throws Unauthorized when neither session nor token context is present", async () => {
-      vi.mocked(auth0.getSession).mockResolvedValueOnce(null);
+    it("returns null when no user matches the auth0 sub", async () => {
+      const mockDb = createMockDb({ User: [] });
+      const originalDbOrm = db.orm;
+      Object.assign(db, asDb(mockDb));
 
-      const queryResolvers = resolvers.Query as Record<
-        string,
-        (
-          _parent: unknown,
-          _args: unknown,
-          context?: GraphQLContext,
-        ) => Promise<unknown>
-      >;
-      const meResolver = queryResolvers.me;
-
-      await expect(meResolver({}, {}, {})).rejects.toThrow("Unauthorized");
+      try {
+        const result = await loadUserByAuth0Sub("auth0|unknown");
+        expect(result).toBeNull();
+      } finally {
+        Object.assign(db, { orm: originalDbOrm });
+      }
     });
   });
 });

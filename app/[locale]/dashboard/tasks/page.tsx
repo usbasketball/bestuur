@@ -7,8 +7,157 @@ import { ExternalLink, Pencil, Check, X } from "lucide-react";
 import { useQuery, useMutation } from "urql";
 import { foysMatchUrl, formatFieldType, abbreviateTeamType, SEASONS } from "@/lib/types";
 import SeasonSelect from "@/components/season-select";
-import { MATCHES_QUERY, MEMBERS_QUERY, UPSERT_TASK_ASSIGNMENT_MUTATION } from "@/lib/graphql/queries";
+import { graphql } from "@/lib/graphql/generated";
 import type { MatchesResponse, MembersResponse, Member, TaskAssignee } from "@/lib/types";
+
+const MATCHES_QUERY = graphql(`
+  query Matches($season: String) {
+    matches(season: $season) {
+      id
+      foysMatchId
+      status
+      date
+      startTime
+      homeScore
+      awayScore
+      homeTeam
+      awayTeam {
+        foysId
+        name
+        organisation {
+          name
+          foysId
+        }
+      }
+      field
+      tasks {
+        hallDuty {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+        referee1 {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+        referee2 {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+        scorer {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+        timer {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+        shotClock {
+          assignmentId
+          taskId
+          status
+          member {
+            id
+            user {
+              firstName
+              lastNamePrefix
+              lastName
+            }
+            primaryTeam
+          }
+        }
+      }
+    }
+  }
+`);
+
+const MEMBERS_QUERY = graphql(`
+  query Members($season: String) {
+    members(season: $season) {
+      id
+      season
+      primaryTeam
+      coachingTeams
+      committees
+      user {
+        email
+        firstName
+        lastNamePrefix
+        lastName
+        nbbNumber
+        refereeLevel
+        foysUserId
+        memberSince
+      }
+    }
+  }
+`);
+
+const UPSERT_TASK_ASSIGNMENT_MUTATION = graphql(`
+  mutation UpsertTaskAssignment($assignmentId: String, $taskId: String!, $memberId: String, $season: String!) {
+    upsertTaskAssignment(assignmentId: $assignmentId, taskId: $taskId, memberId: $memberId, season: $season) {
+      assignmentId
+      member {
+        id
+        user {
+          firstName
+          lastNamePrefix
+          lastName
+        }
+        primaryTeam
+      }
+    }
+  }
+`);
 
 export default function TasksPage() {
   return (

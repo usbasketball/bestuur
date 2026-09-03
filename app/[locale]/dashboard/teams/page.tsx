@@ -4,8 +4,22 @@ import { useTranslations } from "next-intl";
 import { ExternalLink } from "lucide-react";
 import { useQuery } from "urql";
 import { foysTeamUrl, formatDiscipline } from "@/lib/types";
-import { TEAMS_QUERY } from "@/lib/graphql/queries";
+import { graphql } from "@/lib/graphql/generated";
 import type { TeamsResponse } from "@/lib/types";
+
+const TEAMS_QUERY = graphql(`
+  query Teams($season: String) {
+    teams(season: $season) {
+      id
+      foysCompetitionTeamId
+      foysTeamId
+      name
+      season
+      teamType
+      discipline
+    }
+  }
+`);
 
 export default function TeamsPage() {
   const t = useTranslations("Dashboard.teams");
