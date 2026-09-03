@@ -3,7 +3,8 @@
 import { useTranslations } from "next-intl";
 import { ExternalLink } from "lucide-react";
 import { useQuery } from "urql";
-import { foysTeamUrl, formatDiscipline } from "@/lib/types";
+import { foysTeamUrl } from "@/lib/foys";
+import { formatDiscipline } from "@/lib/types";
 import { graphql } from "@/lib/graphql/generated";
 import type { TeamsResponse } from "@/lib/types";
 
