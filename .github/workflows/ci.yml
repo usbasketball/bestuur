@@ -25,6 +25,11 @@ jobs:
       - name: Generate Prisma contract artifacts
         run: npm run contract:emit
 
+      # lib/graphql/generated is gitignored and imported by the pages, so
+      # regenerate it (schema + client types) before typechecking/testing.
+      - name: Generate GraphQL schema and client types
+        run: npm run schema:generate && npm run codegen
+
       # LayoutProps etc. live in .next/types, which is gitignored and normally
       # produced by `next dev`/`next build`. Generate them so `tsc` passes on a
       # fresh clone without a full build.
