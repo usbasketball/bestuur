@@ -7,7 +7,6 @@ export { CLUB_MEMBERSHIP_TYPES, mapClubMembershipType, mapPlanMembershipType, ty
 export { COMMITTEE_TYPES, type CommitteeType } from "./committee-type";
 export { TASK_TYPES, type TaskType } from "./task-type";
 export { TASK_ASSIGNMENT_STATUSES, type TaskAssignmentStatus } from "./task-assignment-status";
-export { FOYS_CLUB_ID, FOYS_BASE_URL, foysMemberUrl, foysTeamUrl, foysMatchUrl } from "./foys";
 export { SEASONS, seasonFromDate, type Season } from "./seasons";
 export { toPlainDateTime, toPlainDateTimeFromIso } from "./datetime";
 

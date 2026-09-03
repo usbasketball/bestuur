@@ -5,7 +5,8 @@ import { useTranslations } from "next-intl";
 import { useSearchParams, useRouter } from "next/navigation";
 import { ExternalLink } from "lucide-react";
 import { useQuery } from "urql";
-import { TEAM_TYPES, foysMemberUrl, type MembersResponse, type TeamType } from "@/lib/types";
+import { foysMemberUrl } from "@/lib/foys";
+import { TEAM_TYPES, type MembersResponse, type TeamType } from "@/lib/types";
 import TeamTypeSelect from "@/components/team-type-select";
 import { graphql } from "@/lib/graphql/generated";
 
