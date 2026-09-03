@@ -6,6 +6,7 @@ import {
   type CommitteeType,
   type RefereeLevel,
 } from "@/lib/types";
+import type { Member, User } from "@/lib/models";
 import type { UserGql } from "./types/user";
 import type { MemberGql } from "./types/member";
 
@@ -21,7 +22,7 @@ function toPlainDateString(value: unknown): string | null {
   return null;
 }
 
-/** Map a selected DB user row to the GraphQL parent shape. */
+/** Map a selected DB user row into the persistence-independent domain model. */
 export function buildUser(user: {
   id: string;
   email: string;
@@ -32,7 +33,7 @@ export function buildUser(user: {
   refereeLevel: string | null;
   foysUserId: string | null;
   memberSince: unknown;
-}): UserGql {
+}): User {
   return {
     id: user.id,
     email: user.email,
@@ -44,6 +45,11 @@ export function buildUser(user: {
     foysUserId: user.foysUserId,
     memberSince: toPlainDateString(user.memberSince),
   };
+}
+
+/** Adapt a domain user to the GraphQL resolver parent shape. */
+export function toUserGql(user: User): UserGql {
+  return { ...user };
 }
 
 export type MemberContext = {
@@ -83,7 +89,7 @@ export async function loadMemberContext(season: Season): Promise<MemberContext> 
 }
 
 /** Batch-load users, optionally filtered by id. */
-export async function loadUsers(userIds?: string[]): Promise<UserGql[]> {
+export async function loadUsers(userIds?: string[]): Promise<User[]> {
   const base = db.orm.public.User.select(
     "id",
     "email",
@@ -107,12 +113,12 @@ export async function loadUsers(userIds?: string[]): Promise<UserGql[]> {
   return users.map(buildUser);
 }
 
-/** Compose a GraphQL member parent from a user and season context. */
+/** Compose a domain member from a user and season context. */
 export function memberRecord(
-  user: UserGql,
+  user: User,
   season: Season,
   ctx: MemberContext,
-): MemberGql {
+): Member {
   return {
     id: user.id,
     user,
@@ -123,8 +129,16 @@ export function memberRecord(
   };
 }
 
+/** Adapt a domain member to the GraphQL resolver parent shape. */
+export function toMemberGql(member: Member): MemberGql {
+  return {
+    ...member,
+    user: toUserGql(member.user),
+  };
+}
+
 /** Load a single user by Auth0 subject (used by the `me` query). */
-export async function loadUserByAuth0Sub(auth0Sub: string): Promise<UserGql | null> {
+export async function loadUserByAuth0Sub(auth0Sub: string): Promise<User | null> {
   const user = await db.orm.public.User.select(
     "id",
     "email",

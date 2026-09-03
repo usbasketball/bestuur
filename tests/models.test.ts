@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { toUserDomain } from "../lib/models/user";
+import { createUser } from "../lib/models/user";
 
 describe("domain model mappers", () => {
-  it("maps a database user record without leaking persistence values", () => {
-    const user = toUserDomain({
+  it("keeps the domain user shape independent from persistence values", () => {
+    const user = createUser({
       id: "user-id",
       email: "user@example.com",
       firstName: "Ada",
@@ -12,9 +12,7 @@ describe("domain model mappers", () => {
       nbbNumber: "123",
       refereeLevel: "BS2",
       foysUserId: "foys-user",
-      memberSince: {
-        toPlainDate: () => ({ toString: () => "2025-09-01" }),
-      },
+      memberSince: "2025-09-01",
     });
 
     expect(user).toEqual({

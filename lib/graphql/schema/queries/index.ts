@@ -6,6 +6,8 @@ import {
   loadUsers,
   loadMemberContext,
   memberRecord,
+  toMemberGql,
+  toUserGql,
   loadUserByAuth0Sub,
 } from "../loaders";
 import { loadMatchData } from "../load-match-data";
@@ -43,7 +45,7 @@ builder.queryFields((t) => ({
       const memberCtx = await loadMemberContext(s);
       const users = await loadUsers(memberships.map((m) => m.userId));
 
-      return users.map((user) => memberRecord(user, s, memberCtx));
+      return users.map((user) => toMemberGql(memberRecord(user, s, memberCtx)));
     },
   }),
 
@@ -73,7 +75,7 @@ builder.queryFields((t) => ({
       const memberCtx = await loadMemberContext(s);
       const users = await loadUsers(userIds);
 
-      return users.map((user) => memberRecord(user, s, memberCtx));
+      return users.map((user) => toMemberGql(memberRecord(user, s, memberCtx)));
     },
   }),
 
@@ -118,7 +120,8 @@ builder.queryFields((t) => ({
       const session = await requireSession(ctx);
       const sub = session.user.sub;
       if (!sub) return null;
-      return loadUserByAuth0Sub(sub);
+      const user = await loadUserByAuth0Sub(sub);
+      return user ? toUserGql(user) : null;
     },
   }),
 }));
