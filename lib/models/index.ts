@@ -6,4 +6,3 @@ export type { Organisation } from "./organisation";
 export type { TaskAssignee } from "./task-assignee";
 export type { Team } from "./team";
 export type { User } from "./user";
-export { createUser } from "./user";

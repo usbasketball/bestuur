@@ -11,7 +11,3 @@ export type User = {
   foysUserId: string | null;
   memberSince: string | null;
 };
-
-export function createUser(user: User): User {
-  return user;
-}

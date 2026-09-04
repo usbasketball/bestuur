@@ -1,9 +1,9 @@
+import { User } from "@/lib/models";
 import { describe, expect, it } from "vitest";
-import { createUser } from "../lib/models/user";
 
 describe("domain model mappers", () => {
   it("keeps the domain user shape independent from persistence values", () => {
-    const user = createUser({
+    const user: User = ({
       id: "user-id",
       email: "user@example.com",
       firstName: "Ada",
