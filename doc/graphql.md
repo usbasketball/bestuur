@@ -15,13 +15,17 @@ bridge:  lib/graphql/schema.graphql committed schema snapshot
 
 - `lib/graphql/schema/builder.ts` — `SchemaBuilder` instance. `defaultFieldNullability = false`, so fields are non-null by default; opt into nullability with `{ nullable: true }`.
 - `lib/graphql/schema/context.ts` — `GraphQLContext` (session, auth helpers).
-- `lib/graphql/schema/types/` — DTO types + object refs. Each type maps an explicit **DB → DTO → GQL** shape:
+- `lib/graphql/schema/types/` — GraphQL parent types + object refs. These types
+  belong to the GraphQL adapter and must not be imported by application code.
   - `scalars.ts` — `UUID`, `DateTime` scalars
   - `enums.ts` — the GraphQL enums (exported refs, e.g. `MatchStatusEnum`)
   - `user.ts`, `member.ts`, `team.ts`, `task.ts`, `match.ts`
 - `lib/graphql/schema/queries/index.ts` — `Query` fields: `matches`, `members`, `activeMembers`, `teams`, `me`.
 - `lib/graphql/schema/mutations/tasks.ts` — `Mutation` fields: `upsertTaskAssignment`.
-- `lib/graphql/schema/loaders.ts`, `load-match-data.ts` — DataLoader-style batch loading (users, members, matches + task assignments). Prefer batch loading here over lazy per-field resolution.
+- `lib/graphql/schema/loaders.ts`, `load-match-data.ts` — DataLoader-style
+  loading and GraphQL adapter mapping (users, members, matches + task
+  assignments). Persistence records are mapped before they cross the GraphQL
+  boundary; prefer batch loading here over lazy per-field resolution.
 - `lib/graphql/schema/index.ts` — assembles the schema via `builder.toSchema()`.
 
 ### Client (urql + codegen)
@@ -53,11 +57,32 @@ bridge:  lib/graphql/schema.graphql committed schema snapshot
 
 CI runs `schema:generate && codegen` before typecheck/tests, mirroring the gitignored Prisma contract artifacts.
 
+## DTO boundaries
+
+The dependency direction is:
+
+```
+Prisma contract / ORM records → lib/models domain models → GraphQL parents → generated client operation types
+```
+
+- Database records are persistence-shaped and may use contract-generated
+  `FieldOutputTypes`, database nullability, and Temporal values.
+- Domain models in `lib/models` are persistence-independent. They contain
+  business/composed concepts such as a seasonal member or a match with task
+  slots, and use application-friendly date values.
+- GraphQL parent types in `lib/graphql/schema/types` exist only to implement
+  the Pothos schema. They define the API representation and its nullability;
+  explicit adapters own any conversion from domain values.
+- Dashboard pages consume operation-specific types generated from their
+  `graphql()` documents. `lib/types` contains shared business constants and
+  mapping helpers, not GraphQL response aliases.
+
 ## Context & auth
 
 - Requests are authenticated against the Auth0 session or a Bearer JWT (`lib/api-auth.ts`).
 - Mutations/queries that require board access call `assertBestuur(ctx)`; the `me` query uses `requireSession(ctx)` and resolves via the `loadUserByAuth0Sub` loader.
-- `lib/types/index.ts` re-exports the response DTO types that components rely on.
+- Dashboard consumers use generated operation result types from
+  `lib/graphql/generated`; shared constants remain in `lib/types`.
 
 ## Schema
 

@@ -5,7 +5,7 @@ import { TeamTypeEnum, DisciplineEnum } from "./enums";
 /**
  * Team DTO — maps 1:1 to the `teams` table (selected fields).
  */
-export type TeamRecord = {
+export type TeamGql = {
   id: string;
   foysCompetitionTeamId: number;
   foysTeamId: number | null;
@@ -15,7 +15,7 @@ export type TeamRecord = {
   discipline: Discipline;
 };
 
-export const TeamRef = builder.objectRef<TeamRecord>("Team");
+export const TeamRef = builder.objectRef<TeamGql>("Team");
 
 TeamRef.implement({
   description: "A team, mapped 1:1 from the teams table",

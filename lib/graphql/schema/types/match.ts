@@ -1,17 +1,17 @@
 import { builder } from "../builder";
-import { MatchTasksRef, type MatchTasksRecord } from "./task";
+import { MatchTasksRef, type MatchTasksGql } from "./task";
 import type { MatchStatus, FieldType, TeamType } from "@/lib/types";
 import { MatchStatusEnum, FieldTypeEnum, TeamTypeEnum } from "./enums";
 
 /**
  * NbbOrganisation DTO — a small value object embedded on away teams.
  */
-export type NbbOrganisationRecord = {
+export type NbbOrganisationGql = {
   name: string;
   foysId: string;
 };
 
-export const NbbOrganisationRef = builder.objectRef<NbbOrganisationRecord>("NbbOrganisation");
+export const NbbOrganisationRef = builder.objectRef<NbbOrganisationGql>("NbbOrganisation");
 
 NbbOrganisationRef.implement({
   description: "An away opponent's organisation",
@@ -24,13 +24,13 @@ NbbOrganisationRef.implement({
 /**
  * NbbTeam DTO — denotes an away team by embedded FOYS data.
  */
-export type NbbTeamRecord = {
+export type NbbTeamGql = {
   foysId: number;
   name: string | null;
-  organisation: NbbOrganisationRecord | null;
+  organisation: NbbOrganisationGql | null;
 };
 
-export const NbbTeamRef = builder.objectRef<NbbTeamRecord>("NbbTeam");
+export const NbbTeamRef = builder.objectRef<NbbTeamGql>("NbbTeam");
 
 NbbTeamRef.implement({
   description: "A team participating in a match (home teams are our own; away teams come from FOYS)",
@@ -49,7 +49,7 @@ NbbTeamRef.implement({
  * Match DTO — composed view-model built from the `matches` table, the `teams`
  * table (via homeTeamFoysId → TeamType), and `task_assignments` (tasks).
  */
-export type MatchRecord = {
+export type MatchGql = {
   id: string;
   foysMatchId: number;
   status: MatchStatus;
@@ -58,12 +58,12 @@ export type MatchRecord = {
   homeScore: number | null;
   awayScore: number | null;
   homeTeam: TeamType | null;
-  awayTeam: NbbTeamRecord;
+  awayTeam: NbbTeamGql;
   field: FieldType | null;
-  tasks: MatchTasksRecord;
+  tasks: MatchTasksGql;
 };
 
-export const MatchRef = builder.objectRef<MatchRecord>("Match");
+export const MatchRef = builder.objectRef<MatchGql>("Match");
 
 MatchRef.implement({
   description: "A basketball match with embedded home/away team info and task assignments",

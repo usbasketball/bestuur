@@ -1,7 +1,13 @@
 import { builder } from "../builder";
 import { db } from "@/lib/db";
 import { assertBestuur } from "@/lib/api-auth";
-import { normalizeSeason, loadUsers, loadMemberContext, memberRecord } from "../loaders";
+import {
+  normalizeSeason,
+  loadUsers,
+  loadMemberContext,
+  memberRecord,
+  toMemberGql,
+} from "../loaders";
 import { TaskAssigneeRef } from "../types/task";
 
 builder.mutationFields((t) => ({
@@ -76,7 +82,7 @@ builder.mutationFields((t) => ({
       let member = null;
       if (updated.userId) {
         const users = await loadUsers([updated.userId]);
-        if (users[0]) member = memberRecord(users[0], season, memberCtx);
+        if (users[0]) member = toMemberGql(memberRecord(users[0], season, memberCtx));
       }
 
       return { assignmentId: updated.id, taskId, status: updated.status, member };
